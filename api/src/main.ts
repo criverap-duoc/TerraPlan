@@ -50,6 +50,15 @@ async function bootstrap(): Promise<void> {
       .setDescription('Sampling campaigns, feasible windows and atomic resource booking.')
       .setVersion('0.1.0')
       .addBearerAuth()
+      .addTag('auth', 'Autenticación JWT (login, refresh rotativo, logout)')
+      .addTag('catalog', 'Catálogo compartido (parámetros, unidades, límites) — solo lectura')
+      .addTag('sites', 'Sitios de muestreo')
+      .addTag('technicians', 'Técnicos de terreno (recurso reservable)')
+      .addTag('equipment', 'Equipos de medición (recurso reservable)')
+      .addTag('vehicles', 'Vehículos (recurso reservable)')
+      .addTag('users', 'Usuarios del sistema (solo admin)')
+      .addTag('reservations', 'Reserva atómica de técnico + equipo + vehículo')
+      .addTag('scheduling', 'Ventanas factibles de muestreo')
       .build(),
   );
   SwaggerModule.setup('docs', app, swaggerDocument);

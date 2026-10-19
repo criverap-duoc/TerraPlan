@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { join } from 'node:path';
+import { FilteredTypeOrmLogger } from './common/database/filtered-typeorm-logger';
 import { HealthModule } from './common/health/health.module';
 import { validate } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,6 +34,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
         entities: [join(__dirname, '**/*.entity.{ts,js}')],
         migrations: [join(__dirname, 'database/migrations/*.{ts,js}')],
         logging: ['error', 'warn'],
+        logger: new FilteredTypeOrmLogger(),
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
