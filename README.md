@@ -37,7 +37,7 @@ curl http://localhost:3000/api/v1/health
 |---|---|---|
 | R1 | Scaffold del monorepo, Docker Compose, config validado, health y CI | ✅ |
 | R2 | Catálogo compartido (lectura) | ✅ |
-| R3 | Auth + roles (JWT, refresh rotativo) | ⬜ |
+| R3 | Auth + roles (JWT, refresh rotativo) | ✅ |
 | R4 | Sitios y recursos (técnicos, equipos, vehículos) | ⬜ |
 | R5 | Reserva atómica + test de carrera | ⬜ |
 | R6 | Ventanas factibles | ⬜ |

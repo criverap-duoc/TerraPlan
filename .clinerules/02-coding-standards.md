@@ -106,6 +106,7 @@ export class CreateCampaignDto {
 - Índices en FK y columnas de filtro frecuente. Constraints (`CHECK`, `UNIQUE`, `EXCLUDE`) en la BD, no solo en código.
 - Transacciones: `dataSource.transaction()` o `QueryRunner` dentro del repository/service coordinador; commit/rollback explícitos; liberar el runner en `finally`.
 - Seeds (datos demo) idempotentes en `database/seeds/`, ejecutables con un script.
+- Dependencias mínimas de persistencia instaladas en R3: `typeorm`, `@nestjs/typeorm`, `pg` (driver Postgres), `dotenv` (CLI de migraciones fuera de Nest). Cualquier nueva dependencia de BD debe justificarse en 1 línea y pasar por aprobación.
 
 ## 8. Autenticación y autorización
 
