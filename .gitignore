@@ -20,7 +20,6 @@ coverage/
 .idea
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json
 
 # Local database data
 pgdata/
