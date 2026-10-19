@@ -1,0 +1,13 @@
+{
+  "name": "terraplan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Environmental sampling campaign scheduling platform",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "preinstall": "npx --yes only-allow pnpm"
+  }
+}

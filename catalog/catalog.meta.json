@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-10-19T00:00:00Z",
+  "sha256": "b8de4906f420252d6b3643eda2ac4216cc65d1f11b125752bf482c4777cee9af",
+  "status": "draft-verified",
+  "validatedBy": null,
+  "validatedAt": null,
+  "sources": [
+    "NCh 1.333 Of.78 (mod. 1987) — BCN",
+    "D.S. N.º 53/2014 MMA — Tabla 2 (Niveles de Calidad Ambiental por Área de Vigilancia) — BCN",
+    "D.S. N.º 53/2014 MMA — Tabla 4 (Metodologías analíticas) — BCN",
+    "EPA SW-846 Chapter 3 (holding times)",
+    "Standard Methods for the Examination of Water and Wastewater (22nd ed.)"
+  ],
+  "notes": "Valores numéricos de límites transcritos desde Tabla 2 D.S. 53/2014 (BCN). Pendiente revisión final por Cristóbal Vera (químico) antes de cambiar status a 'validated'. El módulo de cumplimiento regulatorio NO se implementa en el MVP; solo screening."
+}

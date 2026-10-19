@@ -1,0 +1,8 @@
+packages:
+  - api
+  - web
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@scarf/scarf': false
+  unrs-resolver: true
