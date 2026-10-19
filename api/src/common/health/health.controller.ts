@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Public } from '../../modules/auth/decorators/public.decorator';
 
 export interface HealthResponse {
   status: 'ok';
@@ -20,6 +21,7 @@ function readVersion(): string {
   }
 }
 
+@Public()
 @Controller('health')
 export class HealthController {
   private readonly version = readVersion();

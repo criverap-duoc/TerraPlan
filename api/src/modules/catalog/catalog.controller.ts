@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
 import { CatalogService } from './catalog.service';
 import { CatalogMetaResponseDto } from './dto/catalog-meta-response.dto';
 import { LimitResponseDto } from './dto/limit-response.dto';
@@ -9,6 +10,7 @@ import { ParameterResponseDto } from './dto/parameter-response.dto';
 import { RegulationResponseDto } from './dto/regulation-response.dto';
 import { UnitResponseDto } from './dto/unit-response.dto';
 
+@Public()
 @ApiTags('catalog')
 @Controller('catalog')
 export class CatalogController {

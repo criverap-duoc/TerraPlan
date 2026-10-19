@@ -20,6 +20,8 @@ cuando el clima o el caudal no permiten muestrear.
 pnpm install
 docker compose up -d postgres mongo
 cp api/.env.example api/.env
+pnpm --filter api migration:run
+pnpm --filter api seed:users
 pnpm --filter api start:dev
 curl http://localhost:3000/api/v1/health
 ```
@@ -45,6 +47,43 @@ curl http://localhost:3000/api/v1/health
 | R10 | Publicación a AquaMetric | ⬜ |
 | R11 | Pantallas del MVP (frontend) | ⬜ |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
+
+## Auth
+
+JWT con access token de 15 min y refresh token rotativo de 7 días (se guarda solo el hash en
+PostgreSQL y es revocable). **Deny-by-default:** todo endpoint exige
+`Authorization: Bearer <access>` salvo los marcados con `@Public()` (health, catálogo, login y refresh).
+
+| Acción | admin | coordinator | field_technician | viewer |
+|---|---|---|---|---|
+| Ver agenda/campañas | ✓ | ✓ | ✓ (las suyas) | ✓ |
+| Crear/reservar/reprogramar campaña | ✓ | ✓ | — | — |
+| Marcar en terreno / completar | ✓ | ✓ | ✓ (las suyas) | — |
+| CRUD recursos y sitios | ✓ | ✓ | — | — |
+| Gestión de usuarios | ✓ | — | — | — |
+
+```bash
+# Login: 200 + accessToken + refreshToken
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"coordinator@terraplan.local","password":"Coord1234!"}'
+
+# Perfil: 200 + role
+curl http://localhost:3000/api/v1/auth/me -H 'Authorization: Bearer <accessToken>'
+
+# Rotar el par: el refresh anterior queda revocado y su reutilización devuelve 401
+curl -X POST http://localhost:3000/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' -d '{"refreshToken":"<refreshToken>"}'
+```
+
+- `pnpm --filter api seed:users` crea un usuario por rol (`admin@`, `coordinator@`, `technician@` y
+  `viewer@terraplan.local`; contraseñas demo en `api/src/database/seeds/initial-users.ts`). Es solo
+  para desarrollo: en producción los usuarios se crean con un script manual y contraseñas propias.
+- `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` deben ser distintos, aleatorios y de ≥ 32 caracteres.
+  En producción se rotan y nunca se commitean.
+- `/auth/login` y `/auth/refresh` aceptan 5 intentos por minuto por IP; el sexto responde 429.
+- `pnpm --filter api test:e2e` requiere PostgreSQL arriba (`docker compose up -d postgres`) y la
+  migración aplicada; si la BD no responde, el test falla con un mensaje explícito (no se salta).
 
 ## Documentación
 
