@@ -38,4 +38,20 @@ describe('CatalogService', () => {
     expect(meta.version).toBe('1.0.0');
     expect(meta.status).toBe('draft-verified');
   });
+
+  it('recomputes the catalog checksum from the four JSON files and matches catalog.meta.json', () => {
+    const freshService = new CatalogService();
+    freshService.onModuleInit();
+
+    const computed = freshService.getComputedChecksum();
+    const declared = freshService.getMeta().sha256.toLowerCase();
+
+    if (computed !== declared) {
+      throw new Error(
+        `Catalog checksum mismatch: catalog.meta.json declares ${declared}, computed ${computed}`,
+      );
+    }
+
+    expect(computed).toBe(declared);
+  });
 });

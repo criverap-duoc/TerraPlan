@@ -51,3 +51,11 @@ curl http://localhost:3000/api/v1/health
 - [`docs/adr/`](docs/adr/) — decisiones de arquitectura (ADR-001: reserva atómica).
 - [`docs/design-system.md`](docs/design-system.md) — tokens y componentes de UI.
 - [`catalog/`](catalog/) — fuente de verdad del catálogo compartido con AquaMetric.
+
+## Notas de implementación
+
+- `.gitattributes` raíz (`* text=auto eol=lf`) fuerza terminaciones LF en todos los entornos, para
+  que el `sha256` del catálogo no cambie entre Windows, Linux y CI.
+- `@scarf/scarf` está desactivado en `pnpm-workspace.yaml` (`allowBuilds`) porque pnpm 12 abortaba
+  el install por un build ignorado que no aporta al proyecto.
+

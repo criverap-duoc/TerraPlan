@@ -365,6 +365,14 @@ export class CatalogService implements OnModuleInit {
     };
   }
 
+  /**
+   * Exposed for tests and health checks so the boot-time checksum and the one
+   * asserted in CI are computed by the same code path.
+   */
+  getComputedChecksum(): string {
+    return this.computeChecksum();
+  }
+
   private verifyChecksum(): void {
     const computed = this.computeChecksum();
     const declared = this.meta.sha256;
