@@ -53,6 +53,7 @@ Diagnóstico rápido del entorno (sin modificar nada):
 3. Revisar basura (console.log, TODO sin dueño, archivos fuera de lugar, secretos, lockfiles ajenos). **Reportar, no arreglar sin aprobación.**
 4. Proponer **mensaje Conventional Commit en inglés** (`feat(reservations): add atomic triple booking`), 1 línea ≤ 72 caracteres + cuerpo opcional de ≤ 3 líneas.
 5. Esperar aprobación antes de `git commit`. Un commit = un cambio lógico. Nunca `git add .` a ciegas: añadir archivos por nombre.
+6. Tras `git commit` y con N2/N3 en verde, ejecutar `git push origin main` y verificar el workflow `CI` en GitHub Actions. Si CI falla, el fallo se arrastra como deuda a la siguiente rebanada (no se abre tarea separada). Reportar URL del run.
 
 **Tipos:** `feat` · `fix` · `refactor` · `test` · `docs` · `chore` · `perf` · `ci` · `build`.
 **Scopes:** `auth` · `sites` · `catalog` · `resources` · `campaigns` · `reservations` · `scheduling` · `weather` · `events` · `integration` · `web` · `db` · `docker` · `k6` · `docs`.
@@ -71,6 +72,7 @@ Checklist (marcar cada ítem; reportar solo los pendientes):
 10. [ ] UI: checklist de `docs/design-system.md` §13 + estados carga/vacío/error.
 11. [ ] Recordar a Cristóbal: **capturar GIF/pantallazo** de la feature para el README.
 12. [ ] `clean commit` propuesto.
+13. [ ] `git push` ejecutado y workflow `CI` en verde (reportar URL del run).
 
 ### `cerrar semana`
 Resumen (≤ 10 líneas) contra el plan de 3 semanas (`01` §1): hecho · pendiente · riesgo de plazo · **qué recortar** si hay atraso. Actualizar tabla de progreso en el README.

@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "preinstall": "npx --yes only-allow pnpm"
+    "preinstall": "npx --yes only-allow pnpm",
+    "catalog:checksum": "node scripts/catalog-checksum.mjs"
   }
 }

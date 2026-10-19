@@ -58,4 +58,6 @@ curl http://localhost:3000/api/v1/health
   que el `sha256` del catálogo no cambie entre Windows, Linux y CI.
 - `@scarf/scarf` está desactivado en `pnpm-workspace.yaml` (`allowBuilds`) porque pnpm 12 abortaba
   el install por un build ignorado que no aporta al proyecto.
+- `pnpm catalog:checksum` verifica que el `sha256` de `catalog.meta.json` coincide con los cuatro
+  JSON del catálogo; `pnpm catalog:checksum --write` lo actualiza (más `updatedAt`) tras editarlos.
 
