@@ -21,7 +21,7 @@ pnpm install
 docker compose up -d postgres mongo
 cp api/.env.example api/.env
 pnpm --filter api migration:run
-pnpm --filter api seed:users
+pnpm --filter api seed:all
 pnpm --filter api start:dev
 curl http://localhost:3000/api/v1/health
 ```
@@ -38,7 +38,7 @@ curl http://localhost:3000/api/v1/health
 | R1 | Scaffold del monorepo, Docker Compose, config validado, health y CI | ✅ |
 | R2 | Catálogo compartido (lectura) | ✅ |
 | R3 | Auth + roles (JWT, refresh rotativo) | ✅ |
-| R4 | Sitios y recursos (técnicos, equipos, vehículos) | ⬜ |
+| R4 | Sitios y recursos (técnicos, equipos, vehículos) | ✅ |
 | R5 | Reserva atómica + test de carrera | ⬜ |
 | R6 | Ventanas factibles | ⬜ |
 | R7 | Campañas y máquina de estados | ⬜ |
@@ -84,6 +84,53 @@ curl -X POST http://localhost:3000/api/v1/auth/refresh \
 - `/auth/login` y `/auth/refresh` aceptan 5 intentos por minuto por IP; el sexto responde 429.
 - `pnpm --filter api test:e2e` requiere PostgreSQL arriba (`docker compose up -d postgres`) y la
   migración aplicada; si la BD no responde, el test falla con un mensaje explícito (no se salta).
+
+## Sitios y recursos reservables
+
+| Recurso | Campos principales | Notas |
+|---|---|---|
+| Sitio (`site`) | `code` (único), `name`, `waterBodyType`, `latitude`/`longitude`, `isActive` | Coordenadas WGS84 en `numeric(9,6)`; `waterBodyType`: `river`, `lake`, `estuary`, `groundwater`, `effluent`, `drinking` |
+| Técnico (`technician`) | `code` (único), `fullName`, `phone`, `skills[]`, `userId?`, `isActive` | `userId` debe ser un usuario activo con rol `field_technician` |
+| Equipo (`equipment`) | `code` (único), `name`, `category`, `serialNumber?`, `isActive` | `category` es texto libre por ahora (ej. `multiparametric_probe`) |
+| Vehículo (`vehicle`) | `code` (único), `name`, `plate` (única), `capacityKg?`, `isActive` | `capacityKg` entero > 0 |
+
+La lectura es pública; la escritura requiere `admin` o `coordinator` y la baja lógica solo `admin`.
+Los listados devuelven `{ data, meta: { page, pageSize, total } }` (paginación 1–100, `sort`/`order`).
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/v1/sites` | público | Lista con filtros `waterBodyType`, `isActive`, `q` y orden `code`/`name`/`createdAt` |
+| GET | `/api/v1/sites/:id` | público | Detalle de un sitio |
+| POST | `/api/v1/sites` | admin, coordinator | Crea un sitio (409 si el `code` ya existe) |
+| PATCH | `/api/v1/sites/:id` | admin, coordinator | Actualiza un sitio |
+| DELETE | `/api/v1/sites/:id` | admin | Baja lógica (`isActive=false`), responde 204 |
+| GET | `/api/v1/technicians` | público | Lista con filtros `isActive`, `q` y orden `code`/`fullName`/`createdAt` |
+| GET | `/api/v1/technicians/:id` | público | Detalle de un técnico |
+| POST | `/api/v1/technicians` | admin, coordinator | Crea un técnico (409 por `code`; 400 si el `userId` no es `field_technician`) |
+| PATCH | `/api/v1/technicians/:id` | admin, coordinator | Actualiza un técnico |
+| DELETE | `/api/v1/technicians/:id` | admin | Baja lógica, responde 204 |
+| GET | `/api/v1/equipment` | público | Lista con filtros `isActive`, `q` y orden `code`/`name`/`category`/`createdAt` |
+| GET | `/api/v1/equipment/:id` | público | Detalle de un equipo |
+| POST | `/api/v1/equipment` | admin, coordinator | Crea un equipo (409 por `code`) |
+| PATCH | `/api/v1/equipment/:id` | admin, coordinator | Actualiza un equipo |
+| DELETE | `/api/v1/equipment/:id` | admin | Baja lógica, responde 204 |
+| GET | `/api/v1/vehicles` | público | Lista con filtros `isActive`, `q` y orden `code`/`name`/`plate`/`createdAt` |
+| GET | `/api/v1/vehicles/:id` | público | Detalle de un vehículo |
+| POST | `/api/v1/vehicles` | admin, coordinator | Crea un vehículo (409 por `code` o `plate`) |
+| PATCH | `/api/v1/vehicles/:id` | admin, coordinator | Actualiza un vehículo |
+| DELETE | `/api/v1/vehicles/:id` | admin | Baja lógica, responde 204 |
+| GET | `/api/v1/users` | admin | Lista paginada de usuarios (sin `passwordHash`), filtro `role` y búsqueda `q` |
+
+## Seeds
+
+`pnpm --filter api seed:all` ejecuta los tres seeds en orden; todos son idempotentes por `email`/`code`,
+así que correrlo dos veces no duplica filas ni resetea contraseñas.
+
+| Seed | Comando | Contenido |
+|---|---|---|
+| Usuarios | `pnpm --filter api seed:users` | `admin@`, `coordinator@`, `technician@` y `viewer@terraplan.local` (contraseñas demo en `initial-users.ts`; solo desarrollo) |
+| Sitios | `pnpm --filter api seed:sites` | 6 sitios de la cuenca del Maipo: `RIO-MAIPO-01`, `RIO-MAIPO-02`, `RIO-MAPOCHO-01`, `EMB-ELYES-01`, `EST-LAMPA-01`, `RIO-MAIPO-EST-01` |
+| Recursos | `pnpm --filter api seed:resources` | 4 técnicos (`TECH-01`…`TECH-04`; `TECH-01` vinculada a `technician@`), 3 equipos (`EQ-SONDA-01`, `EQ-TURB-01`, `EQ-NUTRI-01`) y 3 vehículos (`VH-01`…`VH-03`) |
 
 ## Documentación
 

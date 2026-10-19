@@ -10,7 +10,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { EquipmentModule } from './modules/equipment/equipment.module';
+import { SitesModule } from './modules/sites/sites.module';
+import { TechniciansModule } from './modules/technicians/technicians.module';
 import { UsersModule } from './modules/users/users.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
 
 @Module({
   imports: [
@@ -34,6 +38,10 @@ import { UsersModule } from './modules/users/users.module';
     CatalogModule,
     UsersModule,
     AuthModule,
+    SitesModule,
+    TechniciansModule,
+    EquipmentModule,
+    VehiclesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
