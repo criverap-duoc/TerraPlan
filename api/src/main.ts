@@ -4,6 +4,8 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { requestIdMiddleware } from './common/request-id/request-id.middleware';
 
 const API_PREFIX = 'api/v1';
 
@@ -12,6 +14,7 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
 
   app.setGlobalPrefix(API_PREFIX);
+  app.use(requestIdMiddleware);
   // Swagger UI loads an inline bootstrap script, hence 'unsafe-inline' for scripts.
   app.use(
     helmet({
@@ -38,6 +41,7 @@ async function bootstrap(): Promise<void> {
       transformOptions: { enableImplicitConversion: false },
     }),
   );
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   const swaggerDocument = SwaggerModule.createDocument(
     app,

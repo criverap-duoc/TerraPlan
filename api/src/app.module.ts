@@ -9,8 +9,10 @@ import { validate } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
+import { ReservationsModule } from './modules/reservations/reservations.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { TechniciansModule } from './modules/technicians/technicians.module';
 import { UsersModule } from './modules/users/users.module';
@@ -42,6 +44,8 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     TechniciansModule,
     EquipmentModule,
     VehiclesModule,
+    CampaignsModule,
+    ReservationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
