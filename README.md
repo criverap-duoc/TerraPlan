@@ -23,11 +23,13 @@ cp api/.env.example api/.env
 pnpm --filter api migration:run
 pnpm --filter api seed:all
 pnpm --filter api start:dev
+cp web/.env.example web/.env
+pnpm --filter web dev
 curl http://localhost:3000/api/v1/health
 ```
 
 - API: `http://localhost:3000/api/v1` · Health: `GET /api/v1/health` · Swagger: `http://localhost:3000/docs`
-- Web (desde R11): `http://localhost:5173`
+- Web: `http://localhost:5173` (login con las cuentas demo del seed, ej. `coordinator@terraplan.local`)
 - PostgreSQL: `localhost:5432` (contenedor `terraplan-pg`)
 - MongoDB: `localhost:27017` (contenedor `terraplan-mongo`)
 
@@ -45,7 +47,7 @@ curl http://localhost:3000/api/v1/health
 | R8 | Weather/flow gate + reprogramación | ✅ |
 | R9 | Log de eventos en MongoDB | ✅ |
 | R10 | Publicación a AquaMetric | ✅ |
-| R11 | Pantallas del MVP (frontend) | ⬜ |
+| R11 | Pantallas del MVP (frontend) | 🟡 login + app shell (R11a) |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
 
 ## Auth
