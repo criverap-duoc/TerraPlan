@@ -55,8 +55,10 @@ empezar; los límites cambian.
 
 1. **Add New → Project**, conectar el repositorio.
 2. Build command `pnpm --filter web build`; output directory `web/dist`.
-3. Variable de entorno `VITE_API_URL=https://<servicio>.onrender.com/api/v1`.
-4. Redeploy tras cambiar la variable (Vite la inyecta en build time).
+3. Variable de entorno `VITE_API_URL=https://<servicio>.onrender.com/api/v1` en **Settings →
+   Environment Variables** del proyecto en Vercel. No se versiona ningún `.env.production`: Vite la
+   inyecta en build time desde el dashboard.
+4. Redeploy tras cambiar la variable.
 
 ## Paso 5 · Seed de producción (una sola vez)
 

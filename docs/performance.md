@@ -1,5 +1,10 @@
 # Performance (k6)
 
+> **Nota sobre `THROTTLER_LIMIT`:** las mediciones de abajo se corrieron con `THROTTLER_LIMIT=100000`
+> para medir la API y no el rate limiter. Con el default (100 req/min) el escenario `read-load` mide
+> el throttler. Para reproducir estas mediciones, exportar `THROTTLER_LIMIT=100000` en `api/.env`
+> antes de arrancar la API.
+
 Resultados de los dos escenarios obligatorios, medidos en local (Windows 11, Docker Desktop) con la
 API en `start:dev`, PostgreSQL 16 y MongoDB 7 en contenedores, y los seeds cargados (12 campañas,
 4 técnicos, 3 equipos, 3 vehículos).

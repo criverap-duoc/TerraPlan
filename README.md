@@ -410,6 +410,19 @@ servicio por inactividad (primer request 30–50 s); el monitor de UptimeRobot l
 - [`docs/deploy.md`](docs/deploy.md) · [`docs/performance.md`](docs/performance.md) · [`docs/design-system.md`](docs/design-system.md)
 - [`catalog/`](catalog/) — fuente de verdad del catálogo compartido con AquaMetric.
 
+## Deuda conocida (post-MVP)
+
+Aceptada al cerrar el MVP; no bloquea el deploy.
+
+- **DST en `computeFeasibleWindows`**: la iteración de slots es en tiempo absoluto, así que un cambio
+  de horario (septiembre y abril en Chile) desplaza 1 h la hora local del slot. No afecta campañas de
+  5–10 días. Fix: iterar por calendario local con `Intl` en vez de sumar horas a un instante UTC.
+- **Entry chunk de 323 kB (100,8 kB gzip)**: aceptable para 7 pantallas en un MVP. Fix opcional:
+  `advancedChunks` en `web/vite.config.ts` para separar el vendor de React.
+- **Imagen Docker (349 MB)**: el multi-stage con `pnpm deploy --prod` la bajó de 846 MB; la base
+  `node:24-alpine` ya pesa 242 MB. Más abajo requiere `distroless` (exige recompilar `argon2` en
+  glibc) o sacar `swagger-ui-dist` (11 MB) si se renuncia a `/docs` en producción.
+
 ## Licencia
 
 MIT — ver [`LICENSE`](LICENSE).
