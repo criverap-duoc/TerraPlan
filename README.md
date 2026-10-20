@@ -1,8 +1,38 @@
 # TerraPlan
 
+[![CI](https://github.com/criverap-duoc/TerraPlan/actions/workflows/ci.yml/badge.svg)](https://github.com/criverap-duoc/TerraPlan/actions/workflows/ci.yml)
+[![NestJS](https://img.shields.io/badge/API-NestJS%2012-E0234E?logo=nestjs)](https://nestjs.com)
+[![React](https://img.shields.io/badge/web-React%2019-61DAFB?logo=react)](https://react.dev)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+<!-- Descomentar cuando el deploy esté hecho y las URLs confirmadas.
+[![Render](https://img.shields.io/badge/deploy-Render-46E3B7?logo=render)](https://terraplan-api.onrender.com/api/v1/health)
+[![Vercel](https://img.shields.io/badge/deploy-Vercel-000000?logo=vercel)](https://terraplan.vercel.app)
+-->
+
 Agenda de campañas de muestreo ambiental: calcula ventanas factibles según los tiempos de
 conservación de cada parámetro, reserva técnico + equipo + vehículo de forma atómica y reprograma
 cuando el clima o el caudal no permiten muestrear.
+
+## Sobre el proyecto
+
+Coordinar una campaña de muestreo es un problema de tiempos que se cruzan: la muestra debe llegar al
+laboratorio antes de que se degrade, el técnico, el equipo y la camioneta tienen que estar libres al
+mismo tiempo, y el clima o el caudal pueden arruinar el viaje la mañana anterior. TerraPlan ordena
+ese trabajo: el coordinador elige sitio y parámetros, el sistema calcula las **ventanas factibles**
+con los tiempos de conservación del catálogo compartido, reserva los tres recursos en una sola
+transacción y deja cada cambio en una bitácora.
+
+Lo usan técnicos de terreno desde el móvil (marcar una campaña en terreno), coordinadores de
+laboratorio (planificar y reprogramar) y gestores ambientales (revisar qué se muestreó y con qué
+límites). La reserva de recursos **no puede** fallar por doble booking: la garantía vive en un
+`EXCLUDE USING gist` de PostgreSQL, no en una validación de aplicación que dos usuarios pueden
+esquivar a la vez. Los resultados se publican después a [AquaMetric](https://github.com/criverap-duoc),
+el proyecto hermano en FastAPI, contra el mismo catálogo versionado.
+
+El MVP se construyó en tres semanas como rebanadas verticales (de la migración a la pantalla) y se
+despliega completo en free tiers. Las decisiones están documentadas como ADRs y el glosario está
+escrito para el químico que valida los límites normativos.
 
 ## Stack
 
@@ -48,7 +78,7 @@ curl http://localhost:3000/api/v1/health
 | R9 | Log de eventos en MongoDB | ✅ |
 | R10 | Publicación a AquaMetric | ✅ |
 | R11 | Pantallas del MVP (frontend) | ✅ login, agenda, campañas, detalle, asistente de nueva campaña, recursos y catálogo |
-| R12 | k6, deploy free tier y documentación final | ⬜ |
+| R12 | k6, deploy free tier y documentación final | ✅ k6 (carrera y lectura), `render.yaml`, `api/Dockerfile`, arquitectura, glosario, ADRs y guía de despliegue |
 
 ## Auth
 
@@ -341,44 +371,48 @@ así que correrlo dos veces no duplica filas ni resetea contraseñas.
 
 ## Capturas
 
-Las imágenes viven en [`docs/screenshots/`](docs/screenshots/). Pendiente: tomarlas a 1280 px.
+> _Las capturas se actualizan en cada release._
 
-<!-- Descomentar cuando las capturas estén subidas.
+| | |
+|---|---|
+| ![Login](docs/screenshots/01-login.png) | ![Agenda](docs/screenshots/02-agenda.png) |
+| **Login** | **Agenda** |
+| ![Campañas](docs/screenshots/03-campaigns.png) | ![Detalle](docs/screenshots/04-campaign-detail.png) |
+| **Campañas** | **Detalle de campaña** |
+| ![Wizard](docs/screenshots/05-wizard.png) | ![Catálogo](docs/screenshots/06-catalog.png) |
+| **Nueva campaña** | **Catálogo** |
 
-| Login | Agenda | Campañas |
-|---|---|---|
-| ![Login](docs/screenshots/01-login.png) | ![Agenda](docs/screenshots/02-agenda.png) | ![Campañas](docs/screenshots/03-campanas.png) |
+### Demo en video
 
-| Detalle de campaña | Asistente (paso 2) | Catálogo |
-|---|---|---|
-| ![Detalle](docs/screenshots/04-detalle.png) | ![Asistente](docs/screenshots/05-asistente.png) | ![Catálogo](docs/screenshots/06-catalogo.png) |
+![Demo](docs/screenshots/demo.gif)
 
-![Flujo completo](docs/screenshots/demo.gif)
+_Flujo completo: login → nueva campaña → cálculo de ventanas → reserva atómica → confirmación._
 
--->
+## Performance
 
-Capturas pendientes (una por pantalla + GIF del flujo completo):
+Dos escenarios de k6 (`k6/reservation-race.js`, `k6/read-load.js`): la carrera de 20 reservas
+concurrentes termina en **1 éxito y 19 conflictos, sin 5xx**, y la lectura de la agenda sostiene
+**p95 ≈ 161 ms** con 30 VUs. Tabla de resultados y cómo reproducirlos en
+[`docs/performance.md`](docs/performance.md).
 
-- [ ] `01-login.png` — login
-- [ ] `02-agenda.png` — agenda con timeline y campañas del día
-- [ ] `03-campanas.png` — listado de campañas con filtros
-- [ ] `04-detalle.png` — detalle con ventana, reservas y clima
-- [ ] `05-asistente.png` — asistente de nueva campaña, paso 2 (ventanas)
-- [ ] `06-catalogo.png` — catálogo con badge "Pendiente de validación"
-- [ ] `demo.gif` — login → asistente → detalle → confirmar → en terreno → completar
+## Despliegue
 
-## Cómo contribuir capturas
-
-1. Correr API y web (`docker compose up -d postgres mongo`, `pnpm --filter api start:dev`, `pnpm --filter web dev`) y cargar los seeds.
-2. Tomar la captura a 1280 px de ancho (ventana de escritorio, sin barra de direcciones).
-3. Nombrar el archivo `NN-nombre.png` (por ejemplo `02-agenda.png`) y guardarlo en `docs/screenshots/`.
-4. Commit con `docs(readme): add UI screenshots` y descomentar el bloque de imágenes.
+API en Render (Docker), web en Vercel, PostgreSQL en Neon y MongoDB en Atlas M0 — todo free tier.
+`api/Dockerfile` y `render.yaml` están versionados; los pasos manuales, variables de entorno,
+migraciones, seed y UptimeRobot están en [`docs/deploy.md`](docs/deploy.md). Render duerme el
+servicio por inactividad (primer request 30–50 s); el monitor de UptimeRobot lo mantiene caliente.
 
 ## Documentación
 
-- [`docs/adr/`](docs/adr/) — decisiones de arquitectura (ADR-001 reserva atómica, ADR-002 eventos en Mongo, ADR-006 eventos post-commit).
-- [`docs/design-system.md`](docs/design-system.md) — tokens y componentes de UI.
+- [`docs/architecture.md`](docs/architecture.md) — módulos, reserva atómica, estados y despliegue (Mermaid).
+- [`docs/glossary.md`](docs/glossary.md) — glosario en lenguaje simple para el químico colaborador.
+- [`docs/adr/`](docs/adr/) — ADR-001 reserva atómica · ADR-002 eventos en Mongo · ADR-003 migraciones SQL · ADR-004 catálogo compartido · ADR-005 hosting free tier · ADR-006 eventos post-commit.
+- [`docs/deploy.md`](docs/deploy.md) · [`docs/performance.md`](docs/performance.md) · [`docs/design-system.md`](docs/design-system.md)
 - [`catalog/`](catalog/) — fuente de verdad del catálogo compartido con AquaMetric.
+
+## Licencia
+
+MIT — ver [`LICENSE`](LICENSE).
 
 ## Notas de implementación
 
