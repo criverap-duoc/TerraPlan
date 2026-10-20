@@ -1,21 +1,44 @@
 import { CloudSun, MapPin, PackageCheck, Timer } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { HoldingTimeMeter } from '@/components/domain/holding-time-meter';
 import { ParameterChip } from '@/components/domain/parameter-chip';
+import { WeatherGate } from '@/components/domain/weather-gate';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCatalogParameters } from '@/features/catalog/use-catalog-parameters';
 import { useCampaignReservations } from '@/features/reservations/use-campaign-reservations';
+import { describeError } from '@/lib/api-error';
 import { formatDateTime } from '@/lib/format';
 
 import { summarizePayload } from './campaign-event-copy';
-import type { CampaignDetail } from './types';
+import type { CampaignDetail, WeatherAssessment } from './types';
 import { useCampaignEvents } from './use-campaign-events';
+import { useCheckWeather } from './use-check-weather';
+import { useTransitionCampaign } from './use-transition-campaign';
+
+const RESCHEDULE_REASON = 'Reprogramada por clima o caudal adverso detectado en el detalle.';
 
 export function CampaignSummaryTab({ campaign }: { campaign: CampaignDetail }) {
   const parametersQuery = useCatalogParameters();
   const reservationsQuery = useCampaignReservations(campaign.id);
   const eventsQuery = useCampaignEvents(campaign.id);
+  const checkWeather = useCheckWeather(campaign.id);
+  const transition = useTransitionCampaign(campaign.id);
+
+  const [assessment, setAssessment] = useState<WeatherAssessment | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
 
   const parametersByCode = new Map(
     (parametersQuery.data ?? []).map((parameter) => [parameter.code, parameter]),
@@ -28,6 +51,33 @@ export function CampaignSummaryTab({ campaign }: { campaign: CampaignDetail }) {
   const lastWeatherEvent = (eventsQuery.data?.data ?? []).find(
     (event) => event.type === 'weather_blocked',
   );
+
+  const handleCheckWeather = () => {
+    checkWeather.mutate(undefined, {
+      onSuccess: (result) => {
+        const match =
+          result.assessments.find((item) => item.windowId === selectedWindow?.id) ??
+          result.assessments[0] ??
+          null;
+        setAssessment(match);
+      },
+      onError: (error) => toast.error(describeError(error).detail),
+    });
+  };
+
+  const handleReschedule = () => {
+    transition.mutate(
+      { to: 'needs_reschedule', reason: RESCHEDULE_REASON },
+      {
+        onSuccess: () => {
+          setIsRescheduleOpen(false);
+          setAssessment(null);
+          toast.success('La campaña quedó marcada para reprogramar.');
+        },
+        onError: (error) => toast.error(describeError(error).detail),
+      },
+    );
+  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -145,6 +195,34 @@ export function CampaignSummaryTab({ campaign }: { campaign: CampaignDetail }) {
           </p>
         </CardContent>
       </Card>
+
+      <div className="md:col-span-2">
+        <WeatherGate
+          assessment={assessment}
+          campaignStatus={campaign.status}
+          onCheck={handleCheckWeather}
+          onReprogram={() => setIsRescheduleOpen(true)}
+          isChecking={checkWeather.isPending}
+        />
+      </div>
+
+      <AlertDialog open={isRescheduleOpen} onOpenChange={setIsRescheduleOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reprogramar por clima o caudal</AlertDialogTitle>
+            <AlertDialogDescription>
+              La campaña pasará a &quot;Reprogramar&quot; y se liberarán las reservas activas. El
+              motivo queda registrado en la bitácora.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReschedule} disabled={transition.isPending}>
+              Reprogramar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

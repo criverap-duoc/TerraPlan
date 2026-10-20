@@ -1,55 +1,71 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from '@/components/layout/app-shell';
-import { ComingSoon } from '@/components/layout/coming-soon';
+import { PageSkeleton } from '@/components/layout/page-skeleton';
 import { ProtectedRoute } from '@/components/layout/protected-route';
-import { LoginPage } from '@/features/auth/login-page';
-import { ProfilePage } from '@/features/auth/profile-page';
-import { CampaignDetailPage } from '@/features/campaigns/campaign-detail-page';
-import { CampaignsPage } from '@/features/campaigns/campaigns-page';
-import { CatalogPage } from '@/features/catalog/catalog-page';
-import { ResourcesPage } from '@/features/resources/resources-page';
+
+const LoginPage = lazy(() =>
+  import('@/features/auth/login-page').then((module) => ({ default: module.LoginPage })),
+);
+const ProfilePage = lazy(() =>
+  import('@/features/auth/profile-page').then((module) => ({ default: module.ProfilePage })),
+);
+const AgendaPage = lazy(() =>
+  import('@/features/agenda/agenda-page').then((module) => ({ default: module.AgendaPage })),
+);
+const CampaignsPage = lazy(() =>
+  import('@/features/campaigns/campaigns-page').then((module) => ({
+    default: module.CampaignsPage,
+  })),
+);
+const NewCampaignPage = lazy(() =>
+  import('@/features/campaigns/new-campaign-page').then((module) => ({
+    default: module.NewCampaignPage,
+  })),
+);
+const CampaignDetailPage = lazy(() =>
+  import('@/features/campaigns/campaign-detail-page').then((module) => ({
+    default: module.CampaignDetailPage,
+  })),
+);
+const ResourcesPage = lazy(() =>
+  import('@/features/resources/resources-page').then((module) => ({
+    default: module.ResourcesPage,
+  })),
+);
+const CatalogPage = lazy(() =>
+  import('@/features/catalog/catalog-page').then((module) => ({
+    default: module.CatalogPage,
+  })),
+);
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        >
           <Route
-            index
             element={
-              <ComingSoon
-                title="Agenda"
-                description="Campañas del día y disponibilidad de técnicos, equipos y vehículos."
-              />
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
             }
-          />
-          <Route path="campaigns" element={<CampaignsPage />} />
-          <Route
-            path="campaigns/new"
-            element={
-              <ComingSoon
-                title="Nueva campaña"
-                description="Sitio, parámetros, ventana factible y reserva de recursos."
-              />
-            }
-          />
-          <Route path="campaigns/:id" element={<CampaignDetailPage />} />
-          <Route path="resources" element={<ResourcesPage />} />
-          <Route path="catalog" element={<CatalogPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-        </Route>
+          >
+            <Route index element={<AgendaPage />} />
+            <Route path="campaigns" element={<CampaignsPage />} />
+            <Route path="campaigns/new" element={<NewCampaignPage />} />
+            <Route path="campaigns/:id" element={<CampaignDetailPage />} />
+            <Route path="resources" element={<ResourcesPage />} />
+            <Route path="catalog" element={<CatalogPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -25,6 +25,16 @@ const timeFormatter = new Intl.DateTimeFormat('es-CL', {
   hour12: false,
 });
 
+const dateTimeWithWeekdayFormatter = new Intl.DateTimeFormat('es-CL', {
+  timeZone: TIME_ZONE,
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
 // Decimals come from the catalog per parameter, so formatters are memoized per precision.
 const numberFormatters = new Map<number, Intl.NumberFormat>();
 
@@ -58,6 +68,12 @@ export function formatDateTime(value: Date | string): string {
 export function formatTime(value: Date | string): string {
   const date = toDate(value);
   return Number.isNaN(date.getTime()) ? FALLBACK : timeFormatter.format(date);
+}
+
+/** Weekday + date + time: sampling windows read better with the day name. */
+export function formatDateTimeWithWeekday(value: Date | string): string {
+  const date = toDate(value);
+  return Number.isNaN(date.getTime()) ? FALLBACK : dateTimeWithWeekdayFormatter.format(date);
 }
 
 export function formatNumber(value: number, decimals: number): string {

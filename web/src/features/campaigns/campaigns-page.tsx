@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Plus, SlidersHorizontal } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import {
   CampaignStatusBadge,
@@ -169,7 +169,16 @@ function buildColumns(siteNames: Map<string, string>): ColumnDef<Campaign, unkno
 }
 
 export function CampaignsPage() {
-  const [filters, setFilters] = useState<FiltersState>(INITIAL_FILTERS);
+  const [searchParams] = useSearchParams();
+  const requestedStatus = searchParams.get('status');
+  const [filters, setFilters] = useState<FiltersState>(() => ({
+    ...INITIAL_FILTERS,
+    // The agenda links here with ?status=needs_reschedule.
+    status:
+      requestedStatus !== null && CAMPAIGN_STATUSES.includes(requestedStatus as CampaignStatus)
+        ? requestedStatus
+        : ALL,
+  }));
   const [page, setPage] = useState(1);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 

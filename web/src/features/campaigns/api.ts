@@ -7,10 +7,28 @@ import type {
   CampaignDetail,
   CampaignEventsResponse,
   CampaignFilters,
+  FeasibleWindowsResponse,
+  PersistedWindowInput,
   PublishCampaignResponse,
   TransitionCampaignPayload,
   WeatherCheckResponse,
 } from './types';
+
+export interface CampaignDetailsPayload {
+  code: string;
+  siteId: string;
+  parameterCodes: string[];
+  notes?: string;
+  earliestStart?: string;
+}
+
+export interface FeasibleWindowsPayload {
+  earliestStart: string;
+  latestEnd: string;
+  slotMinutes: number;
+  transportMinutes: number;
+  parameterCodes?: string[];
+}
 
 export function listCampaigns(filters: CampaignFilters): Promise<Paginated<Campaign>> {
   const query = buildQueryString({
@@ -45,4 +63,35 @@ export function publishCampaign(id: string): Promise<PublishCampaignResponse> {
 
 export function listCampaignEvents(id: string): Promise<CampaignEventsResponse> {
   return apiClient.request<CampaignEventsResponse>('GET', `/campaigns/${id}/events?limit=50`);
+}
+
+export function createCampaign(payload: CampaignDetailsPayload): Promise<Campaign> {
+  return apiClient.request<Campaign>('POST', '/campaigns', payload);
+}
+
+// Only draft campaigns accept a PATCH; the wizard updates the campaign it just created.
+export function updateCampaign(id: string, payload: CampaignDetailsPayload): Promise<Campaign> {
+  return apiClient.request<Campaign>('PATCH', `/campaigns/${id}`, payload);
+}
+
+export function computeFeasibleWindows(
+  id: string,
+  payload: FeasibleWindowsPayload,
+): Promise<FeasibleWindowsResponse> {
+  return apiClient.request<FeasibleWindowsResponse>(
+    'POST',
+    `/campaigns/${id}/feasible-windows`,
+    payload,
+  );
+}
+
+export function persistWindows(
+  id: string,
+  windows: PersistedWindowInput[],
+): Promise<CampaignDetail> {
+  return apiClient.request<CampaignDetail>('POST', `/campaigns/${id}/windows`, { windows });
+}
+
+export function selectWindow(id: string, windowId: string): Promise<CampaignDetail> {
+  return apiClient.request<CampaignDetail>('POST', `/campaigns/${id}/select-window`, { windowId });
 }

@@ -47,7 +47,7 @@ curl http://localhost:3000/api/v1/health
 | R8 | Weather/flow gate + reprogramación | ✅ |
 | R9 | Log de eventos en MongoDB | ✅ |
 | R10 | Publicación a AquaMetric | ✅ |
-| R11 | Pantallas del MVP (frontend) | 🟡 login, app shell, recursos, catálogo, campañas y detalle (R11b) |
+| R11 | Pantallas del MVP (frontend) | ✅ login, agenda, campañas, detalle, asistente de nueva campaña, recursos y catálogo |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
 
 ## Auth
@@ -336,8 +336,43 @@ así que correrlo dos veces no duplica filas ni resetea contraseñas.
 | Usuarios | `pnpm --filter api seed:users` | `admin@`, `coordinator@`, `technician@` y `viewer@terraplan.local` (contraseñas demo en `initial-users.ts`; solo desarrollo) |
 | Sitios | `pnpm --filter api seed:sites` | 6 sitios de la cuenca del Maipo: `RIO-MAIPO-01`, `RIO-MAIPO-02`, `RIO-MAPOCHO-01`, `EMB-ELYES-01`, `EST-LAMPA-01`, `RIO-MAIPO-EST-01` |
 | Recursos | `pnpm --filter api seed:resources` | 4 técnicos (`TECH-01`…`TECH-04`; `TECH-01` vinculada a `technician@`), 3 equipos (`EQ-SONDA-01`, `EQ-TURB-01`, `EQ-NUTRI-01`) y 3 vehículos (`VH-01`…`VH-03`) |
-| Campañas | `pnpm --filter api seed:campaigns` | 12 campañas (`CAMP-2026-0001`…`CAMP-2026-0012`) repartidas entre `draft`, `planned`, `confirmed`, `in_field`, `needs_reschedule` y `completed`, cada una con sitio (round-robin de los 6) y parámetros del catálogo, sin ventanas ni reservas |
+| Campañas | `pnpm --filter api seed:campaigns` | 12 campañas (`CAMP-2026-0001`…`CAMP-2026-0012`) repartidas entre `draft`, `planned`, `confirmed`, `in_field`, `needs_reschedule` y `completed`, cada una con sitio (round-robin de los 6) y parámetros del catálogo. Las campañas posteriores a `draft` reciben 2 ventanas demo (lunes 08:00–10:00 y miércoles 10:00–12:00, hora de Santiago) con límite de conservación calculado desde el catálogo, sin reservas |
 
+
+## Capturas
+
+Las imágenes viven en [`docs/screenshots/`](docs/screenshots/). Pendiente: tomarlas a 1280 px.
+
+<!-- Descomentar cuando las capturas estén subidas.
+
+| Login | Agenda | Campañas |
+|---|---|---|
+| ![Login](docs/screenshots/01-login.png) | ![Agenda](docs/screenshots/02-agenda.png) | ![Campañas](docs/screenshots/03-campanas.png) |
+
+| Detalle de campaña | Asistente (paso 2) | Catálogo |
+|---|---|---|
+| ![Detalle](docs/screenshots/04-detalle.png) | ![Asistente](docs/screenshots/05-asistente.png) | ![Catálogo](docs/screenshots/06-catalogo.png) |
+
+![Flujo completo](docs/screenshots/demo.gif)
+
+-->
+
+Capturas pendientes (una por pantalla + GIF del flujo completo):
+
+- [ ] `01-login.png` — login
+- [ ] `02-agenda.png` — agenda con timeline y campañas del día
+- [ ] `03-campanas.png` — listado de campañas con filtros
+- [ ] `04-detalle.png` — detalle con ventana, reservas y clima
+- [ ] `05-asistente.png` — asistente de nueva campaña, paso 2 (ventanas)
+- [ ] `06-catalogo.png` — catálogo con badge "Pendiente de validación"
+- [ ] `demo.gif` — login → asistente → detalle → confirmar → en terreno → completar
+
+## Cómo contribuir capturas
+
+1. Correr API y web (`docker compose up -d postgres mongo`, `pnpm --filter api start:dev`, `pnpm --filter web dev`) y cargar los seeds.
+2. Tomar la captura a 1280 px de ancho (ventana de escritorio, sin barra de direcciones).
+3. Nombrar el archivo `NN-nombre.png` (por ejemplo `02-agenda.png`) y guardarlo en `docs/screenshots/`.
+4. Commit con `docs(readme): add UI screenshots` y descomentar el bloque de imágenes.
 
 ## Documentación
 

@@ -106,3 +106,26 @@ export interface TransitionCampaignPayload {
   to: CampaignStatus;
   reason?: string;
 }
+
+export interface FeasibleWindow {
+  samplingStart: string;
+  samplingEnd: string;
+  arrivalAtLab: string;
+  analysisStart: string;
+  holdingDeadline: string | null;
+  isFeasible: boolean;
+  infeasibilityReason?: 'lab_closed' | 'holding_exceeded';
+}
+
+export interface FeasibleWindowsResponse {
+  campaignId: string;
+  minHoldingTimeHours: number | 'Infinity';
+  windows: FeasibleWindow[];
+}
+
+export interface PersistedWindowInput {
+  startsAt: string;
+  endsAt: string;
+  transportMinutes: number;
+  holdingDeadline: string | null;
+}
