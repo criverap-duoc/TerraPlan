@@ -278,7 +278,7 @@ describe('Events (e2e)', () => {
     const secondPage = second.body as ListEventsBody;
 
     expect(secondPage.data).toHaveLength(2);
-    expect(secondPage.meta.nextCursor).toBeNull();
+    expect(secondPage.meta.nextCursor).toEqual(expect.any(String));
     expect([...firstPage.data, ...secondPage.data].map((event) => event.requestId)).toEqual([
       'req-b',
       'req-a',
@@ -286,6 +286,21 @@ describe('Events (e2e)', () => {
       'req-d',
     ]);
     expect(new Set([...firstPage.data, ...secondPage.data].map((event) => event.id)).size).toBe(4);
+
+    const third = await request(app.getHttpServer())
+      .get(
+        `/${API_PREFIX}/campaigns/${campaignId}/events?limit=2&before=${encodeURIComponent(
+          secondPage.meta.nextCursor as string,
+        )}`,
+      )
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+
+    expect(third.status).toBe(200);
+
+    const thirdPage = third.body as ListEventsBody;
+
+    expect(thirdPage.data).toHaveLength(0);
+    expect(thirdPage.meta.nextCursor).toBeNull();
   });
 
   it('rejects a request without a token', async () => {
