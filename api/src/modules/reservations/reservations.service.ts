@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { CLOCK } from '../../common/clock/clock.types';
 import type { Clock } from '../../common/clock/clock.types';
 import { CampaignsService } from '../campaigns/campaigns.service';
+import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
 import { EquipmentService } from '../equipment/equipment.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
@@ -16,10 +17,15 @@ import { ReservationsRepository } from './reservations.repository';
 const MAX_BOOKING_HOURS = 24;
 const HOUR_IN_MS = 3_600_000;
 
-const CAMPAIGN_NOT_FOUND = 'Campaña no encontrada.';
 const TECHNICIAN_NOT_FOUND = 'El técnico indicado no existe o está inactivo.';
 const EQUIPMENT_NOT_FOUND = 'El equipo indicado no existe o está inactivo.';
 const VEHICLE_NOT_FOUND = 'El vehículo indicado no existe o está inactivo.';
+const CAMPAIGN_NOT_BOOKABLE = 'Solo campañas en borrador o planificadas pueden reservar recursos.';
+
+const BOOKABLE_STATUSES: readonly CampaignStatus[] = [
+  CampaignStatus.Draft,
+  CampaignStatus.Planned,
+];
 
 @Injectable()
 export class ReservationsService {
@@ -51,11 +57,12 @@ export class ReservationsService {
 
     const campaign = await this.campaignsService.findById(campaignId);
 
-    if (!campaign) {
-      throw new NotFoundException(CAMPAIGN_NOT_FOUND);
+    if (!BOOKABLE_STATUSES.includes(campaign.status)) {
+      throw new BadRequestException({
+        code: 'INVALID_STATE_TRANSITION',
+        message: CAMPAIGN_NOT_BOOKABLE,
+      });
     }
-
-    // TODO(R7): validate campaign status once the state machine exists.
 
     const technician = await this.resolveActive(
       () => this.techniciansService.findById(dto.technicianId),
@@ -115,11 +122,8 @@ export class ReservationsService {
   }
 
   private async ensureCampaignExists(campaignId: string): Promise<void> {
-    const campaign = await this.campaignsService.findById(campaignId);
-
-    if (!campaign) {
-      throw new NotFoundException(CAMPAIGN_NOT_FOUND);
-    }
+    // findById throws NotFoundException when the campaign does not exist.
+    await this.campaignsService.findById(campaignId);
   }
 
   private async resolveActive<T extends { isActive: boolean }>(

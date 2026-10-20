@@ -53,6 +53,7 @@ async function bootstrap(): Promise<void> {
       .addTag('auth', 'Autenticación JWT (login, refresh rotativo, logout)')
       .addTag('catalog', 'Catálogo compartido (parámetros, unidades, límites) — solo lectura')
       .addTag('sites', 'Sitios de muestreo')
+      .addTag('campaigns', 'Campañas de muestreo: ciclo de vida, parámetros y ventanas')
       .addTag('technicians', 'Técnicos de terreno (recurso reservable)')
       .addTag('equipment', 'Equipos de medición (recurso reservable)')
       .addTag('vehicles', 'Vehículos (recurso reservable)')

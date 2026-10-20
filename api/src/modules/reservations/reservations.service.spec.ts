@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
 import type { Clock } from '../../common/clock/clock.types';
 import type { CampaignsService } from '../campaigns/campaigns.service';
+import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
 import type { EquipmentService } from '../equipment/equipment.service';
 import type { TechniciansService } from '../technicians/technicians.service';
 import type { VehiclesService } from '../vehicles/vehicles.service';
@@ -59,7 +60,11 @@ describe('ReservationsService', () => {
       findActiveByCampaign: jest.fn(),
     };
     campaignsService = {
-      findById: jest.fn().mockResolvedValue({ id: CAMPAIGN_ID, code: 'CAMP-2026-0001' }),
+      findById: jest.fn().mockResolvedValue({
+        id: CAMPAIGN_ID,
+        code: 'CAMP-2026-0001',
+        status: CampaignStatus.Draft,
+      }),
     };
     techniciansService = {
       findById: jest.fn().mockResolvedValue({ id: TECHNICIAN_ID, code: 'TECH-01', isActive: true }),
@@ -136,10 +141,29 @@ describe('ReservationsService', () => {
   });
 
   it('throws 404 when the campaign does not exist', async () => {
-    campaignsService.findById.mockResolvedValue(null);
+    campaignsService.findById.mockRejectedValue(new NotFoundException('Campaña no encontrada.'));
 
     await expect(service.bookTriple(CAMPAIGN_ID, dto)).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.bookTriple).not.toHaveBeenCalled();
+  });
+
+  it('rejects bookings when the campaign is already confirmed', async () => {
+    campaignsService.findById.mockResolvedValue({
+      id: CAMPAIGN_ID,
+      code: 'CAMP-2026-0001',
+      status: CampaignStatus.Confirmed,
+    });
+
+    const error: unknown = await service
+      .bookTriple(CAMPAIGN_ID, dto)
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as BadRequestException).getResponse()).toMatchObject({
+      code: 'INVALID_STATE_TRANSITION',
+    });
+    expect(repository.bookTriple).not.toHaveBeenCalled();
+    expect(queryRunner.startTransaction).not.toHaveBeenCalled();
   });
 
   it('throws 404 when the technician is inactive', async () => {
@@ -218,7 +242,7 @@ describe('ReservationsService', () => {
   });
 
   it('throws 404 when releasing a campaign that does not exist', async () => {
-    campaignsService.findById.mockResolvedValue(null);
+    campaignsService.findById.mockRejectedValue(new NotFoundException('Campaña no encontrada.'));
 
     await expect(service.releaseByCampaign(CAMPAIGN_ID)).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.releaseByCampaign).not.toHaveBeenCalled();

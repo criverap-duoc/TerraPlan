@@ -137,8 +137,20 @@ describe('SchedulingService', () => {
     await expect(promise).rejects.toMatchObject({ response: { code: 'INVALID_RANGE' } });
   });
 
+  it('uses the campaign parameters when the request omits them', async () => {
+    campaignsService.findById.mockResolvedValue({
+      id: CAMPAIGN_ID,
+      code: 'CAMP-2026-0001',
+      parameters: ['TURB', 'N_NO3'],
+    });
+
+    const response = await service.computeForCampaign(CAMPAIGN_ID, query());
+
+    expect(response.minHoldingTimeHours).toBe(24);
+  });
+
   it('throws NotFoundException when the campaign does not exist', async () => {
-    campaignsService.findById.mockResolvedValue(null);
+    campaignsService.findById.mockRejectedValue(new NotFoundException('Campaña no encontrada.'));
 
     await expect(service.computeForCampaign(CAMPAIGN_ID, query())).rejects.toBeInstanceOf(
       NotFoundException,

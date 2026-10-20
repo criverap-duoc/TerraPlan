@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { CatalogService } from '../catalog/catalog.service';
 import type { ParameterResponseDto } from '../catalog/dto/parameter-response.dto';
@@ -11,7 +11,6 @@ import type { FeasibleWindowsQueryDto } from './dto/feasible-windows-query.dto';
 import type { FeasibleWindowResponseDto } from './dto/feasible-window-response.dto';
 import type { FeasibleWindowsResponseDto } from './dto/feasible-windows-response.dto';
 
-const CAMPAIGN_NOT_FOUND = 'La campaña solicitada no existe.';
 const INVALID_RANGE = 'latestEnd debe ser posterior a earliestStart.';
 
 // R6 keeps the lab schedule fixed; R8 makes it configurable.
@@ -48,11 +47,8 @@ export class SchedulingService {
     campaignId: string,
     dto: FeasibleWindowsQueryDto,
   ): Promise<FeasibleWindowsResponseDto> {
+    // findById also resolves the campaign parameters when the request omits them.
     const campaign = await this.campaignsService.findById(campaignId);
-
-    if (campaign === null) {
-      throw new NotFoundException(CAMPAIGN_NOT_FOUND);
-    }
 
     const earliestStart = new Date(dto.earliestStart);
     const latestEnd = new Date(dto.latestEnd);
@@ -61,7 +57,9 @@ export class SchedulingService {
       throw new BadRequestException({ code: 'INVALID_RANGE', message: INVALID_RANGE });
     }
 
-    const minHoldingTimeHours = this.resolveMinHoldingTimeHours(dto.parameterCodes);
+    const minHoldingTimeHours = this.resolveMinHoldingTimeHours(
+      dto.parameterCodes ?? campaign.parameters,
+    );
     const windows = computeFeasibleWindows({
       earliestStart,
       latestEnd,

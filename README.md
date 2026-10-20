@@ -41,7 +41,7 @@ curl http://localhost:3000/api/v1/health
 | R4 | Sitios y recursos (técnicos, equipos, vehículos) | ✅ |
 | R5 | Reserva atómica + test de carrera | ✅ |
 | R6 | Ventanas factibles | ✅ |
-| R7 | Campañas y máquina de estados | ⬜ |
+| R7 | Campañas y máquina de estados | ✅ |
 | R8 | Weather/flow gate + reprogramación | ⬜ |
 | R9 | Log de eventos en MongoDB | ⬜ |
 | R10 | Publicación a AquaMetric | ⬜ |
@@ -140,9 +140,8 @@ sin borrar la fila, que queda como auditoría.
 | DELETE | `/api/v1/campaigns/:campaignId/reservations` | admin, coordinator | Libera las reservas activas (204) |
 
 Validaciones del servicio antes de tocar la BD: `startsAt < endsAt`, duración ≤ 24 h, ventana no
-terminada, campaña existente y los tres recursos activos. La garantía anti-doble-booking **no** es
-"consultar y luego insertar": es el constraint. La campaña es mínima en R5 (`id`, `code`, `status`);
-sitio, parámetros y endpoints de campaña llegan en R7.
+terminada, campaña existente y en estado `draft` o `planned` (desde R7), y los tres recursos activos.
+La garantía anti-doble-booking **no** es "consultar y luego insertar": es el constraint.
 
 ```bash
 pnpm --filter api test:int   # Testcontainers: postgres:16-alpine efímero, requiere Docker
@@ -185,6 +184,48 @@ pura, sin Nest, sin TypeORM y sin `new Date()`; usa `Intl` para la zona horaria 
 (factible simple, cierre del laboratorio, fin de semana, cruce de medianoche, `Infinity`, múltiples
 slots y rango vacío). Ver `01 §4.2` y [`docs/architecture.md`](docs/architecture.md).
 
+## Campañas
+
+Una campaña nace en `draft` con un sitio, una lista de parámetros del catálogo y, opcionalmente, una
+fecha de inicio temprana. Su ciclo de vida está en una función pura
+(`campaigns/campaign-status.domain.ts`, tabla de 49 combinaciones) y cada transición valida sus
+precondiciones antes de escribir en la BD.
+
+| Desde | Hacia | Precondición |
+|---|---|---|
+| `draft` | `planned` | Al menos una ventana guardada |
+| `draft` | `cancelled` | Motivo (la API `DELETE` usa un motivo por defecto) |
+| `planned` | `confirmed` | Al menos una reserva activa |
+| `planned` | `draft` | — (volver a editar) |
+| `planned` | `cancelled` | Motivo |
+| `confirmed` | `in_field` | Una ventana seleccionada |
+| `confirmed` | `needs_reschedule` | Motivo; libera las reservas activas |
+| `confirmed` | `cancelled` | Motivo; libera las reservas activas |
+| `in_field` | `completed` | — |
+| `in_field` | `cancelled` | Motivo; libera las reservas activas |
+| `needs_reschedule` | `planned` | Al menos una ventana guardada |
+| `needs_reschedule` | `cancelled` | Motivo; libera las reservas activas |
+| `completed` | `cancelled` | Motivo; libera las reservas activas |
+
+Cualquier otro par responde **409** `INVALID_STATE_TRANSITION`. Las precondiciones incumplidas
+responden **400** con código estable: `NO_WINDOW_SELECTED`, `NO_ACTIVE_RESERVATION`,
+`NO_SELECTED_WINDOW`, `REASON_REQUIRED` o `UNKNOWN_PARAMETER`.
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/v1/campaigns` | todos | Lista paginada; filtros `status`, `siteId`, `from`, `to` |
+| GET | `/api/v1/campaigns/:id` | todos | Detalle con sitio, parámetros, ventanas y `hasActiveReservations` |
+| POST | `/api/v1/campaigns` | admin, coordinator | Crea en `draft`; 400 si un parámetro no existe en el catálogo |
+| PATCH | `/api/v1/campaigns/:id` | admin, coordinator | Solo en `draft`: `notes`, `earliestStart`, `parameterCodes` |
+| POST | `/api/v1/campaigns/:id/transition` | admin, coordinator | Aplica la máquina de estados |
+| POST | `/api/v1/campaigns/:id/windows` | admin, coordinator | Reemplaza las ventanas (`draft` o `planned`) |
+| POST | `/api/v1/campaigns/:id/select-window` | admin, coordinator | Marca una ventana como seleccionada |
+| DELETE | `/api/v1/campaigns/:id` | admin | Cancela y libera reservas (204, idempotente) |
+
+Flujo típico: crear → calcular ventanas factibles → guardar ventanas → seleccionar una → reservar
+técnico + equipo + vehículo → `planned` → `confirmed` → `in_field` → `completed`. Si el clima o el
+caudal obligan a reprogramar: `confirmed → needs_reschedule` (libera reservas) → `planned`.
+
 ## Seeds
 
 `pnpm --filter api seed:all` ejecuta los cuatro seeds en orden; todos son idempotentes por `email`/`code`,
@@ -195,7 +236,7 @@ así que correrlo dos veces no duplica filas ni resetea contraseñas.
 | Usuarios | `pnpm --filter api seed:users` | `admin@`, `coordinator@`, `technician@` y `viewer@terraplan.local` (contraseñas demo en `initial-users.ts`; solo desarrollo) |
 | Sitios | `pnpm --filter api seed:sites` | 6 sitios de la cuenca del Maipo: `RIO-MAIPO-01`, `RIO-MAIPO-02`, `RIO-MAPOCHO-01`, `EMB-ELYES-01`, `EST-LAMPA-01`, `RIO-MAIPO-EST-01` |
 | Recursos | `pnpm --filter api seed:resources` | 4 técnicos (`TECH-01`…`TECH-04`; `TECH-01` vinculada a `technician@`), 3 equipos (`EQ-SONDA-01`, `EQ-TURB-01`, `EQ-NUTRI-01`) y 3 vehículos (`VH-01`…`VH-03`) |
-| Campañas | `pnpm --filter api seed:campaigns` | 12 campañas (`CAMP-2026-0001`…`CAMP-2026-0012`) repartidas entre `draft`, `planned`, `confirmed`, `in_field`, `needs_reschedule` y `completed`, sin reservas |
+| Campañas | `pnpm --filter api seed:campaigns` | 12 campañas (`CAMP-2026-0001`…`CAMP-2026-0012`) repartidas entre `draft`, `planned`, `confirmed`, `in_field`, `needs_reschedule` y `completed`, cada una con sitio (round-robin de los 6) y parámetros del catálogo, sin ventanas ni reservas |
 
 
 ## Documentación

@@ -40,8 +40,8 @@ export class FeasibleWindowsQueryDto {
     type: [String],
     example: ['TURB', 'N_NO3'],
     description:
-      'Catalog parameter codes of the campaign. When omitted, every parameter that requires a ' +
-      'lab window is used.',
+      'Catalog parameter codes. When omitted, the campaign parameters are used; if the campaign ' +
+      'has none, every parameter that requires a lab window is used.',
   })
   @IsOptional()
   @IsArray()
