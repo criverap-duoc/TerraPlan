@@ -19,6 +19,7 @@ import { SitesModule } from './modules/sites/sites.module';
 import { TechniciansModule } from './modules/technicians/technicians.module';
 import { UsersModule } from './modules/users/users.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { WeatherModule } from './modules/weather/weather.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     CampaignsModule,
     ReservationsModule,
     SchedulingModule,
+    WeatherModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -1,0 +1,3 @@
+export const WEATHER_PROVIDER = Symbol('WEATHER_PROVIDER');
+export const FLOW_PROVIDER = Symbol('FLOW_PROVIDER');
+export const WEATHER_THRESHOLDS = Symbol('WEATHER_THRESHOLDS');

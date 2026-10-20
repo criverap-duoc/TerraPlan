@@ -42,7 +42,7 @@ curl http://localhost:3000/api/v1/health
 | R5 | Reserva atómica + test de carrera | ✅ |
 | R6 | Ventanas factibles | ✅ |
 | R7 | Campañas y máquina de estados | ✅ |
-| R8 | Weather/flow gate + reprogramación | ⬜ |
+| R8 | Weather/flow gate + reprogramación | ✅ |
 | R9 | Log de eventos en MongoDB | ⬜ |
 | R10 | Publicación a AquaMetric | ⬜ |
 | R11 | Pantallas del MVP (frontend) | ⬜ |
@@ -225,6 +225,25 @@ responden **400** con código estable: `NO_WINDOW_SELECTED`, `NO_ACTIVE_RESERVAT
 Flujo típico: crear → calcular ventanas factibles → guardar ventanas → seleccionar una → reservar
 técnico + equipo + vehículo → `planned` → `confirmed` → `in_field` → `completed`. Si el clima o el
 caudal obligan a reprogramar: `confirmed → needs_reschedule` (libera reservas) → `planned`.
+
+## Weather / flow gate
+
+`POST /api/v1/campaigns/:campaignId/check-weather` (admin, coordinator) evalúa la campaña contra el
+pronóstico y el caudal:
+
+1. Usa la ventana seleccionada; si no hay ninguna, evalúa todas las ventanas guardadas.
+2. Pide el pronóstico horario a **Open-Meteo** (sin API key, timeout 5 s, 1 reintento con backoff
+   500 ms) y el caudal al `FlowProvider` simulado (determinístico entre 0,5 y 50,5 m³/s).
+3. `assessWeather` (función pura) compara la **precipitación máxima** de la ventana y el caudal
+   contra los umbrales globales (`5 mm/h`, `0,1–100 m³/s`). Prioridad del motivo:
+   `precipitation_exceeded` → `flow_too_low` → `flow_too_high`.
+4. Si no es factible y la campaña está `confirmed`, se transiciona automáticamente a
+   `needs_reschedule` con el motivo en `notes` y se liberan las reservas activas.
+   En cualquier otro estado solo se reporta (`transitioned: false`).
+
+Respuesta: `{ campaignId, allFeasible, transitioned, assessments[] }`, con la precipitación y el
+caudal usados en cada ventana. Sin ventanas → **400** `NO_WINDOWS_TO_CHECK`; fallo del proveedor →
+**502** `UPSTREAM_UNAVAILABLE`. Los umbrales son globales en R8 (parametrizables por sitio en R12).
 
 ## Seeds
 
