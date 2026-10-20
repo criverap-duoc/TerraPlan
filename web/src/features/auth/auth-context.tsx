@@ -1,12 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import {
-  UNAUTHORIZED_EVENT,
-  clearTokens,
-  getStoredTokens,
-  saveTokens,
-} from '@/lib/token-storage';
+import { UNAUTHORIZED_EVENT, clearTokens, getStoredTokens, saveTokens } from '@/lib/token-storage';
 
 import { loginRequest, meRequest } from './api';
 import type { User } from './types';

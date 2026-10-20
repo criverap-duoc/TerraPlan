@@ -1,12 +1,5 @@
 import { cn } from 'cn';
-import {
-  CalendarDays,
-  ClipboardList,
-  Droplets,
-  LogOut,
-  UserRound,
-  Wrench,
-} from 'lucide-react';
+import { CalendarDays, ClipboardList, Droplets, LogOut, UserRound, Wrench } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
@@ -67,7 +60,12 @@ export function AppShell() {
         </div>
         <nav aria-label="Navegación principal" className="flex flex-1 flex-col gap-1 p-3">
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => navLinkClasses(isActive)}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => navLinkClasses(isActive)}
+            >
               <item.icon className="size-5 lg:size-4" />
               {item.label}
             </NavLink>
@@ -75,7 +73,9 @@ export function AppShell() {
         </nav>
         <div className="border-t p-3">
           <p className="truncate text-sm font-medium">{user?.fullName}</p>
-          <p className="truncate font-mono text-xs tabular-nums text-muted-foreground">{user?.email}</p>
+          <p className="truncate font-mono text-xs tabular-nums text-muted-foreground">
+            {user?.email}
+          </p>
           <Button variant="ghost" className="mt-2 w-full justify-start" onClick={handleLogout}>
             <LogOut className="size-4" aria-hidden="true" />
             Cerrar sesión
@@ -95,7 +95,12 @@ export function AppShell() {
       >
         <div className="flex h-16 items-stretch">
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => navLinkClasses(isActive)}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => navLinkClasses(isActive)}
+            >
               <item.icon className="size-5" />
               {item.label}
             </NavLink>

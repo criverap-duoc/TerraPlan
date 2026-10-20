@@ -1,10 +1,5 @@
 import { parseProblemDetail, type ProblemDetail } from '@/lib/problem-detail';
-import {
-  clearTokens,
-  getStoredTokens,
-  notifyUnauthorized,
-  saveTokens,
-} from '@/lib/token-storage';
+import { clearTokens, getStoredTokens, notifyUnauthorized, saveTokens } from '@/lib/token-storage';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 

@@ -5,13 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '@/lib/api-client';
@@ -128,7 +122,12 @@ export function LoginPage() {
                 ) : null}
               </div>
 
-              <Button type="submit" className="w-full" aria-busy={isSubmitting} disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                aria-busy={isSubmitting}
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                 ) : (
