@@ -60,8 +60,7 @@ describe('CampaignsService', () => {
     hasWindows: jest.Mock;
     hasSelectedWindow: jest.Mock;
     hasActiveReservations: jest.Mock;
-    updateIfDraft: jest.Mock;
-    replaceParameters: jest.Mock;
+    updateWithParameters: jest.Mock;
     transitionStatus: jest.Mock;
     persistWindows: jest.Mock;
     selectWindow: jest.Mock;
@@ -81,8 +80,7 @@ describe('CampaignsService', () => {
       hasWindows: jest.fn().mockResolvedValue(false),
       hasSelectedWindow: jest.fn().mockResolvedValue(false),
       hasActiveReservations: jest.fn().mockResolvedValue(false),
-      updateIfDraft: jest.fn().mockResolvedValue(true),
-      replaceParameters: jest.fn().mockResolvedValue(undefined),
+      updateWithParameters: jest.fn().mockResolvedValue(true),
       transitionStatus: jest.fn().mockResolvedValue(true),
       persistWindows: jest.fn().mockResolvedValue(undefined),
       selectWindow: jest.fn().mockResolvedValue(true),
@@ -124,10 +122,11 @@ describe('CampaignsService', () => {
       parameterCodes: ['PH', 'N_NO3'],
     });
 
-    expect(repository.updateIfDraft).toHaveBeenCalledWith(CAMPAIGN_ID, {
-      notes: 'Coordinado con la municipalidad',
-    });
-    expect(repository.replaceParameters).toHaveBeenCalledWith(CAMPAIGN_ID, ['PH', 'N_NO3']);
+    expect(repository.updateWithParameters).toHaveBeenCalledWith(
+      CAMPAIGN_ID,
+      { notes: 'Coordinado con la municipalidad' },
+      ['PH', 'N_NO3'],
+    );
     expect(result.id).toBe(CAMPAIGN_ID);
   });
 
@@ -137,7 +136,23 @@ describe('CampaignsService', () => {
     const promise = service.update(CAMPAIGN_ID, { notes: 'tarde' });
 
     await expect(promise).rejects.toBeInstanceOf(InvalidStateTransitionError);
-    expect(repository.updateIfDraft).not.toHaveBeenCalled();
+    expect(repository.updateWithParameters).not.toHaveBeenCalled();
+  });
+
+  it('leaves no partial changes when a concurrent transition wins the row lock', async () => {
+    repository.updateWithParameters.mockResolvedValue(false);
+
+    const promise = service.update(CAMPAIGN_ID, {
+      notes: 'Coordinado con la municipalidad',
+      parameterCodes: ['PH', 'N_NO3'],
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(InvalidStateTransitionError);
+    expect(repository.updateWithParameters).toHaveBeenCalledWith(
+      CAMPAIGN_ID,
+      { notes: 'Coordinado con la municipalidad' },
+      ['PH', 'N_NO3'],
+    );
   });
 
   it('rejects draft to planned without windows', async () => {

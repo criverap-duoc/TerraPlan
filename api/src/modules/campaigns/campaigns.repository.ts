@@ -150,27 +150,48 @@ export class CampaignsRepository {
     return rows[0]?.exists === true;
   }
 
-  async updateIfDraft(id: string, patch: Partial<Campaign>): Promise<boolean> {
-    const result = await this.repository
-      .createQueryBuilder()
-      .update(Campaign)
-      .set(patch)
-      .where('id = :id AND status = :status', { id, status: CampaignStatus.Draft })
-      .execute();
+  // The row lock plus the status predicate make the patch and the parameter swap atomic: a
+  // concurrent transition either waits for this transaction or makes it update 0 rows.
+  updateWithParameters(
+    id: string,
+    patch: Partial<Campaign>,
+    parameterCodes?: string[],
+  ): Promise<boolean> {
+    return this.repository.manager.transaction(async (manager) => {
+      const campaign = await manager.findOne(Campaign, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    return result.affected === 1;
-  }
-
-  async replaceParameters(campaignId: string, parameterCodes: string[]): Promise<void> {
-    await this.repository.manager.transaction(async (manager) => {
-      await manager.delete(CampaignParameter, { campaignId });
-
-      if (parameterCodes.length > 0) {
-        await manager.insert(
-          CampaignParameter,
-          parameterCodes.map((parameterCode) => ({ campaignId, parameterCode })),
-        );
+      if (!campaign || campaign.status !== CampaignStatus.Draft) {
+        return false;
       }
+
+      if (Object.keys(patch).length > 0) {
+        const result = await manager
+          .createQueryBuilder()
+          .update(Campaign)
+          .set(patch)
+          .where('id = :id AND status = :status', { id, status: CampaignStatus.Draft })
+          .execute();
+
+        if (result.affected !== 1) {
+          return false;
+        }
+      }
+
+      if (parameterCodes !== undefined) {
+        await manager.delete(CampaignParameter, { campaignId: id });
+
+        if (parameterCodes.length > 0) {
+          await manager.insert(
+            CampaignParameter,
+            parameterCodes.map((parameterCode) => ({ campaignId: id, parameterCode })),
+          );
+        }
+      }
+
+      return true;
     });
   }
 

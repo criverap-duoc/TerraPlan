@@ -228,6 +228,45 @@ describe('Campaigns (e2e)', () => {
     campaignId = body.id;
   });
 
+  it('filters the campaign list by status', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`${campaignsPath()}?status=draft&pageSize=100`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    const body = response.body as { data: CampaignBody[]; meta: { total: number } };
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.meta.total).toBeGreaterThanOrEqual(body.data.length);
+    expect(body.data.every((campaign) => campaign.status === 'draft')).toBe(true);
+  });
+
+  it('filters the campaign list by site', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`${campaignsPath()}?siteId=${siteId}&pageSize=100`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    const body = response.body as { data: CampaignBody[] };
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data.every((campaign) => campaign.siteId === siteId)).toBe(true);
+  });
+
+  it('combines the status and site filters', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`${campaignsPath()}?status=draft&siteId=${siteId}&pageSize=100`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    const body = response.body as { data: CampaignBody[] };
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(
+      body.data.every((campaign) => campaign.status === 'draft' && campaign.siteId === siteId),
+    ).toBe(true);
+  });
+
   it('returns the detail with its site and parameters', async () => {
     const response = await request(app.getHttpServer())
       .get(campaignsPath(campaignId))

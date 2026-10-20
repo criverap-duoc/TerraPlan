@@ -141,16 +141,10 @@ export class CampaignsService {
     if (dto.earliestStart !== undefined) patch.earliestStart = new Date(dto.earliestStart);
     if (dto.notes !== undefined) patch.notes = dto.notes;
 
-    if (Object.keys(patch).length > 0) {
-      const updated = await this.campaignsRepository.updateIfDraft(id, patch);
+    const updated = await this.campaignsRepository.updateWithParameters(id, patch, parameterCodes);
 
-      if (!updated) {
-        throw new InvalidStateTransitionError(CONCURRENT_TRANSITION);
-      }
-    }
-
-    if (parameterCodes !== undefined) {
-      await this.campaignsRepository.replaceParameters(id, parameterCodes);
+    if (!updated) {
+      throw new InvalidStateTransitionError(CONCURRENT_TRANSITION);
     }
 
     return this.toResponse(await this.getCampaignOrFail(id));
