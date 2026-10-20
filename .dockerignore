@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+coverage
+.git
+.github
+.vscode
+.idea
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+docs
+k6

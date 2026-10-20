@@ -1,0 +1,41 @@
+# Render Blueprint for the TerraPlan API (Docker, free tier).
+# The web app deploys to Vercel; Postgres and MongoDB are managed by Neon and Atlas.
+services:
+  - type: web
+    name: terraplan-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: MONGO_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: CORS_ORIGINS
+        value: https://terraplan.vercel.app
+      - key: AQUAMETRIC_URL
+        sync: false
+      - key: AQUAMETRIC_API_KEY
+        sync: false
+      - key: WEATHER_PROVIDER
+        value: open-meteo
+      - key: OPEN_METEO_BASE_URL
+        value: https://api.open-meteo.com/v1
+      - key: THROTTLER_LIMIT
+        value: 100
