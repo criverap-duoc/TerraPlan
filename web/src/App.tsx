@@ -5,6 +5,10 @@ import { ComingSoon } from '@/components/layout/coming-soon';
 import { ProtectedRoute } from '@/components/layout/protected-route';
 import { LoginPage } from '@/features/auth/login-page';
 import { ProfilePage } from '@/features/auth/profile-page';
+import { CampaignDetailPage } from '@/features/campaigns/campaign-detail-page';
+import { CampaignsPage } from '@/features/campaigns/campaigns-page';
+import { CatalogPage } from '@/features/catalog/catalog-page';
+import { ResourcesPage } from '@/features/resources/resources-page';
 
 export default function App() {
   return (
@@ -28,15 +32,7 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="campaigns"
-            element={
-              <ComingSoon
-                title="Campañas"
-                description="Todas las campañas de muestreo, filtrables por estado, sitio y fecha."
-              />
-            }
-          />
+          <Route path="campaigns" element={<CampaignsPage />} />
           <Route
             path="campaigns/new"
             element={
@@ -46,33 +42,9 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="campaigns/:id"
-            element={
-              <ComingSoon
-                title="Detalle de campaña"
-                description="Estado, ventanas, reservas, clima y bitácora de eventos."
-              />
-            }
-          />
-          <Route
-            path="resources"
-            element={
-              <ComingSoon
-                title="Recursos"
-                description="Técnicos, equipos y vehículos con su disponibilidad."
-              />
-            }
-          />
-          <Route
-            path="catalog"
-            element={
-              <ComingSoon
-                title="Catálogo"
-                description="Parámetros, unidades y límites normativos compartidos con AquaMetric."
-              />
-            }
-          />
+          <Route path="campaigns/:id" element={<CampaignDetailPage />} />
+          <Route path="resources" element={<ResourcesPage />} />
+          <Route path="catalog" element={<CatalogPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 

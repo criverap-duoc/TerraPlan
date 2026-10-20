@@ -1,5 +1,13 @@
 import { cn } from 'cn';
-import { CalendarDays, ClipboardList, Droplets, LogOut, UserRound, Wrench } from 'lucide-react';
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  Droplets,
+  LogOut,
+  UserRound,
+  Wrench,
+} from 'lucide-react';
 import type { ComponentType } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
@@ -17,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Agenda', icon: CalendarDays, end: true },
   { to: '/campaigns', label: 'Campañas', icon: ClipboardList },
   { to: '/resources', label: 'Recursos', icon: Wrench },
+  { to: '/catalog', label: 'Catálogo', icon: BookOpen },
   { to: '/profile', label: 'Perfil', icon: UserRound },
 ];
 

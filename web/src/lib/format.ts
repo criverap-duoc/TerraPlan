@@ -86,6 +86,29 @@ export function formatDuration(minutes: number): string {
   return `${hours} h ${remainingMinutes} min`;
 }
 
+const relativeFormatter = new Intl.RelativeTimeFormat('es-CL', { numeric: 'auto' });
+
+export function formatRelative(value: Date | string, now: Date = new Date()): string {
+  const date = toDate(value);
+  if (Number.isNaN(date.getTime())) {
+    return FALLBACK;
+  }
+
+  const minutes = Math.round((date.getTime() - now.getTime()) / 60_000);
+  if (Math.abs(minutes) < 60) {
+    return relativeFormatter.format(minutes, 'minute');
+  }
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) {
+    return relativeFormatter.format(hours, 'hour');
+  }
+  const days = Math.round(hours / 24);
+  if (Math.abs(days) < 30) {
+    return relativeFormatter.format(days, 'day');
+  }
+  return relativeFormatter.format(Math.round(days / 30), 'month');
+}
+
 export function formatCensored(value: number | null, unit: string, decimals: number): string {
   if (value === null) {
     return '< LOQ';

@@ -47,7 +47,7 @@ curl http://localhost:3000/api/v1/health
 | R8 | Weather/flow gate + reprogramación | ✅ |
 | R9 | Log de eventos en MongoDB | ✅ |
 | R10 | Publicación a AquaMetric | ✅ |
-| R11 | Pantallas del MVP (frontend) | 🟡 login + app shell (R11a) |
+| R11 | Pantallas del MVP (frontend) | 🟡 login, app shell, recursos, catálogo, campañas y detalle (R11b) |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
 
 ## Auth
