@@ -24,6 +24,8 @@ import { UsersModule } from './modules/users/users.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { WeatherModule } from './modules/weather/weather.module';
 
+const DEFAULT_THROTTLE_LIMIT = 100;
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -42,7 +44,16 @@ import { WeatherModule } from './modules/weather/weather.module';
         logger: new FilteredTypeOrmLogger(),
       }),
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => [
+        {
+          ttl: 60_000,
+          // Load tests raise this locally; production keeps the safe default.
+          limit: configService.get<number>('THROTTLER_LIMIT') ?? DEFAULT_THROTTLE_LIMIT,
+        },
+      ],
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -14,22 +14,10 @@ export interface PreparedWindows {
   minHoldingTimeHours: number | 'Infinity';
 }
 
-const MAX_WIZARD_WINDOWS = 8;
-const FIRST_WORKING_HOUR = 8;
-const LAST_WORKING_HOUR = 16;
-
-/**
- * The API marks a slot feasible based on the holding time only, so a week of 2-hour slots returns
- * night slots too. The wizard offers the first working-hour windows instead of the whole week.
- */
-function isWorkingHour(isoStart: string): boolean {
-  const hour = new Date(isoStart).getHours();
-  return hour >= FIRST_WORKING_HOUR && hour < LAST_WORKING_HOUR;
-}
-
 /**
  * Computes the feasible windows and persists the feasible ones so they get ids the user can
- * select. Returning both steps keeps the wizard in a single loading state.
+ * select. The domain already discards slots outside the lab operating hours, so every returned
+ * window is sampleable without client-side filtering.
  */
 export function usePrepareWindows() {
   const queryClient = useQueryClient();
@@ -37,9 +25,7 @@ export function usePrepareWindows() {
   return useMutation({
     mutationFn: async ({ campaignId, payload }: PrepareWindowsInput): Promise<PreparedWindows> => {
       const result = await computeFeasibleWindows(campaignId, payload);
-      const feasible = result.windows
-        .filter((window) => window.isFeasible && isWorkingHour(window.samplingStart))
-        .slice(0, MAX_WIZARD_WINDOWS);
+      const feasible = result.windows.filter((window) => window.isFeasible);
 
       if (feasible.length === 0) {
         return { windows: [], minHoldingTimeHours: result.minHoldingTimeHours };

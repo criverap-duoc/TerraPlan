@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUrl,
   Matches,
@@ -28,6 +29,12 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   PORT!: number;
+
+  // Requests per minute per IP. Optional so load tests can raise it without touching production.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  THROTTLER_LIMIT?: number;
 
   @IsString()
   @IsNotEmpty()

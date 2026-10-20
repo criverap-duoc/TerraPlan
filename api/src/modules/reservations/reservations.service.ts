@@ -13,12 +13,18 @@ import { VehiclesService } from '../vehicles/vehicles.service';
 import { BookingResponseDto } from './dto/booking-response.dto';
 import { BookingRowDto } from './dto/booking-row.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { ReservationsRangeResponseDto } from './dto/reservations-range-response.dto';
 import { ResourceBooking } from './entities/resource-booking.entity';
 import { ResourceConflictError } from './errors/resource-conflict.error';
 import { ReservationsRepository } from './reservations.repository';
 
 const MAX_BOOKING_HOURS = 24;
+const MAX_RANGE_DAYS = 90;
 const HOUR_IN_MS = 3_600_000;
+const DAY_IN_MS = 86_400_000;
+
+const RANGE_ORDER_MESSAGE = 'El inicio del rango debe ser anterior al término.';
+const RANGE_TOO_LONG_MESSAGE = 'El rango no puede superar los 90 días.';
 
 const TECHNICIAN_NOT_FOUND = 'El técnico indicado no existe o está inactivo.';
 const EQUIPMENT_NOT_FOUND = 'El equipo indicado no existe o está inactivo.';
@@ -160,6 +166,27 @@ export class ReservationsService {
     const bookings = await this.reservationsRepository.findActiveByCampaign(campaignId);
 
     return bookings.map((booking) => this.toRow(booking));
+  }
+
+  // The agenda asks for a visible range once instead of fanning out one request per campaign.
+  async listByRange(fromIso: string, toIso: string): Promise<ReservationsRangeResponseDto> {
+    const from = new Date(fromIso);
+    const to = new Date(toIso);
+
+    if (from.getTime() >= to.getTime()) {
+      throw new BadRequestException({ code: 'INVALID_RANGE', message: RANGE_ORDER_MESSAGE });
+    }
+
+    if (to.getTime() - from.getTime() > MAX_RANGE_DAYS * DAY_IN_MS) {
+      throw new BadRequestException({ code: 'INVALID_RANGE', message: RANGE_TOO_LONG_MESSAGE });
+    }
+
+    const bookings = await this.reservationsRepository.findActiveInRange(
+      from.toISOString(),
+      to.toISOString(),
+    );
+
+    return { data: bookings.map((booking) => this.toRow(booking)) };
   }
 
   private async ensureCampaignExists(campaignId: string): Promise<void> {

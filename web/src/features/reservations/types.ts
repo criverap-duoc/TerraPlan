@@ -31,3 +31,7 @@ export interface BookingRow {
   status: 'active' | 'released';
   createdAt: string;
 }
+
+export interface BookingRowsResponse {
+  data: BookingRow[];
+}

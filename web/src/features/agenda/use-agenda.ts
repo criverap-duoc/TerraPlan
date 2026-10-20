@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 
+import { useReservationsRange } from '@/features/agenda/use-reservations-range';
 import { getCampaign } from '@/features/campaigns/api';
 import type { Campaign, CampaignWindow } from '@/features/campaigns/types';
-import { listCampaignReservations } from '@/features/reservations/api';
 import { parseBookingRange } from '@/features/reservations/range';
 import type { BookingRow } from '@/features/reservations/types';
 
@@ -19,45 +20,36 @@ export interface InFieldCampaign {
 }
 
 /**
- * There is no cross-campaign bookings endpoint yet, so the agenda reads the reservations of every
- * campaign in parallel. With the MVP data set (<= 100 campaigns) this stays within a few requests.
+ * The agenda reads every active booking overlapping the visible range in one request and resolves
+ * the campaign code from the campaigns already loaded by the page.
  */
-export function useAgendaBookings(campaigns: Campaign[]) {
-  return useQueries({
-    queries: campaigns.map((campaign) => ({
-      queryKey: ['campaign', campaign.id, 'reservations'],
-      queryFn: () => listCampaignReservations(campaign.id),
-      staleTime: 15_000,
-    })),
-    combine: (results) => {
-      const bookings: AgendaBooking[] = [];
+export function useAgendaBookings(campaigns: Campaign[], range: { from: Date; to: Date }) {
+  const query = useReservationsRange(range);
+  const campaignCodes = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, campaign.code])),
+    [campaigns],
+  );
 
-      results.forEach((result, index) => {
-        const campaign = campaigns[index];
-        if (!campaign) {
-          return;
-        }
-        for (const row of result.data ?? []) {
-          const range = parseBookingRange(row.during);
-          if (!range) {
-            continue;
-          }
-          bookings.push({
-            row,
-            campaignCode: campaign.code,
-            startsAt: range.startsAt,
-            endsAt: range.endsAt,
-          });
-        }
+  const bookings = useMemo(() => {
+    const rows: AgendaBooking[] = [];
+
+    for (const row of query.data?.data ?? []) {
+      const bookingRange = parseBookingRange(row.during);
+      if (!bookingRange) {
+        continue;
+      }
+      rows.push({
+        row,
+        campaignCode: campaignCodes.get(row.campaignId) ?? row.campaignId.slice(0, 8),
+        startsAt: bookingRange.startsAt,
+        endsAt: bookingRange.endsAt,
       });
+    }
 
-      return {
-        isPending: results.some((result) => result.isPending),
-        error: results.find((result) => result.error)?.error ?? null,
-        bookings,
-      };
-    },
-  });
+    return rows;
+  }, [query.data, campaignCodes]);
+
+  return { isPending: query.isPending, error: query.error, bookings };
 }
 
 export function useInFieldCampaigns(campaigns: Campaign[], range: { from: Date; to: Date }) {

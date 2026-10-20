@@ -33,6 +33,22 @@ const SELECT_ACTIVE_BY_CAMPAIGN = `
   ORDER BY created_at
 `;
 
+// `&&` is the range-overlap operator, so a booking that only touches the range boundary is excluded.
+const SELECT_ACTIVE_OVERLAPPING_RANGE = `
+  SELECT
+    id,
+    campaign_id AS "campaignId",
+    resource_type AS "resourceType",
+    resource_id AS "resourceId",
+    during::text AS during,
+    status,
+    created_at AS "createdAt"
+  FROM resource_booking
+  WHERE status = 'active'
+    AND during && tstzrange($1::timestamptz, $2::timestamptz, '[)')
+  ORDER BY during, created_at
+`;
+
 // RETURNING id keeps the affected-row count reliable across drivers.
 const RELEASE_BY_CAMPAIGN = `
   UPDATE resource_booking
@@ -102,6 +118,12 @@ export class ReservationsRepository {
 
   findActiveByCampaign(campaignId: string): Promise<ResourceBooking[]> {
     return this.repository.query(SELECT_ACTIVE_BY_CAMPAIGN, [campaignId]) as Promise<
+      ResourceBooking[]
+    >;
+  }
+
+  findActiveInRange(from: string, to: string): Promise<ResourceBooking[]> {
+    return this.repository.query(SELECT_ACTIVE_OVERLAPPING_RANGE, [from, to]) as Promise<
       ResourceBooking[]
     >;
   }

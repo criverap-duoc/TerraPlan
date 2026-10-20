@@ -8,6 +8,7 @@ import { EventsModule } from '../events/events.module';
 import { TechniciansModule } from '../technicians/technicians.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { ResourceBooking } from './entities/resource-booking.entity';
+import { ReservationsRangeController } from './reservations-range.controller';
 import { ReservationsController } from './reservations.controller';
 import { ReservationsRepository } from './reservations.repository';
 import { ReservationsService } from './reservations.service';
@@ -21,7 +22,7 @@ import { ReservationsService } from './reservations.service';
     EquipmentModule,
     VehiclesModule,
   ],
-  controllers: [ReservationsController],
+  controllers: [ReservationsController, ReservationsRangeController],
   providers: [
     ReservationsService,
     ReservationsRepository,

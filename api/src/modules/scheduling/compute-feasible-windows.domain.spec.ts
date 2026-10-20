@@ -90,7 +90,7 @@ describe('computeFeasibleWindows', () => {
     expect(window.isFeasible).toBe(false);
   });
 
-  it('keeps a midnight arrival feasible when the deadline is after the next opening', () => {
+  it('rejects a midnight slot even when the deadline is after the next opening', () => {
     const [window] = computeFeasibleWindows(
       input({
         earliestStart: santiago('2026-11-16T22:00:00'),
@@ -103,7 +103,36 @@ describe('computeFeasibleWindows', () => {
 
     expect(window.analysisStart).toEqual(santiago('2026-11-17T08:00:00'));
     expect(window.holdingDeadline).toEqual(santiago('2026-11-17T11:00:00'));
-    expect(window.isFeasible).toBe(true);
+    expect(window.isFeasible).toBe(false);
+    expect(window.infeasibilityReason).toBe('outside_lab_hours');
+  });
+
+  it('rejects a Saturday slot when the lab only opens on weekdays', () => {
+    const [window] = computeFeasibleWindows(
+      input({
+        earliestStart: santiago('2026-11-21T10:00:00'),
+        latestEnd: santiago('2026-11-21T12:00:00'),
+        slotMinutes: 120,
+        minHoldingTimeHours: 24,
+      }),
+    );
+
+    expect(window.isFeasible).toBe(false);
+    expect(window.infeasibilityReason).toBe('outside_lab_hours');
+  });
+
+  it('rejects a weekday slot that starts before the lab opens', () => {
+    const [window] = computeFeasibleWindows(
+      input({
+        earliestStart: santiago('2026-11-16T03:00:00'),
+        latestEnd: santiago('2026-11-16T05:00:00'),
+        slotMinutes: 120,
+        minHoldingTimeHours: 24,
+      }),
+    );
+
+    expect(window.isFeasible).toBe(false);
+    expect(window.infeasibilityReason).toBe('outside_lab_hours');
   });
 
   it('splits the range into consecutive slots', () => {

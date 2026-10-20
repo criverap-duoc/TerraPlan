@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -298,5 +299,47 @@ describe('Reservations (integration)', () => {
 
     expect(await countBookingsForCampaign(secondCampaignId)).toBe(0);
     expect(await countActiveBookings()).toBe(3);
+  });
+
+  it('lists only the active bookings that overlap the requested range', async () => {
+    const earlyCampaignId = await createCampaign('RANGE-EARLY');
+    const middleCampaignId = await createCampaign('RANGE-MIDDLE');
+    const lateCampaignId = await createCampaign('RANGE-LATE');
+    const resources = {
+      technicianId: technicianA.id,
+      equipmentId: equipmentA.id,
+      vehicleId: vehicle.id,
+    };
+
+    await service.bookTriple(earlyCampaignId, {
+      ...resources,
+      startsAt: '2026-11-16T08:00:00Z',
+      endsAt: '2026-11-16T10:00:00Z',
+    });
+    await service.bookTriple(middleCampaignId, {
+      ...resources,
+      startsAt: '2026-11-16T12:00:00Z',
+      endsAt: '2026-11-16T14:00:00Z',
+    });
+    await service.bookTriple(lateCampaignId, {
+      ...resources,
+      startsAt: '2026-11-20T12:00:00Z',
+      endsAt: '2026-11-20T14:00:00Z',
+    });
+    await service.releaseByCampaign(lateCampaignId);
+
+    const result = await service.listByRange('2026-11-16T09:00:00Z', '2026-11-16T13:00:00Z');
+
+    expect(result.data).toHaveLength(6);
+    expect(new Set(result.data.map((row) => row.campaignId))).toEqual(
+      new Set([earlyCampaignId, middleCampaignId]),
+    );
+    expect(result.data.every((row) => row.status === 'active')).toBe(true);
+  });
+
+  it('rejects a range whose end is not after its start', async () => {
+    await expect(
+      service.listByRange('2026-11-16T09:00:00Z', '2026-11-16T09:00:00Z'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

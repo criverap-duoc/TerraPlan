@@ -79,7 +79,7 @@ export function AgendaPage() {
   const vehiclesQuery = useVehicles({ page: 1, pageSize: PAGE_SIZE });
 
   const campaigns = campaignsQuery.data?.data ?? [];
-  const agenda = useAgendaBookings(campaigns);
+  const agenda = useAgendaBookings(campaigns, range);
   const inField = useInFieldCampaigns(campaigns, todayRange);
 
   const resources: TimelineResource[] = useMemo(() => {

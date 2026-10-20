@@ -14,7 +14,7 @@ export interface FeasibleWindowsInput {
   minHoldingTimeHours: number; // Infinity when every parameter is measured in situ
 }
 
-export type InfeasibilityReason = 'lab_closed' | 'holding_exceeded';
+export type InfeasibilityReason = 'lab_closed' | 'holding_exceeded' | 'outside_lab_hours';
 
 export interface FeasibleWindow {
   samplingStart: Date;
@@ -116,6 +116,18 @@ function wallClockToUtc(
   return new Date(wallClockMs - zoneOffsetMs(firstGuess, timeZone));
 }
 
+// A sample can only be taken while the lab is receiving samples: nights, weekends (when the lab is
+// weekdays-only) and closing hours are not sampleable even if the holding time would allow it.
+function isOutsideLabHours(date: Date, hours: LabOpenHours): boolean {
+  const parts = zonedParts(date, hours.timeZone);
+
+  if (hours.weekdaysOnly && WEEKEND.includes(parts.weekday)) {
+    return true;
+  }
+
+  return parts.hour < hours.openHour || parts.hour >= hours.closeHour;
+}
+
 function nextLabOpen(date: Date, hours: LabOpenHours): Date {
   const parts = zonedParts(date, hours.timeZone);
   const isOpenDay = !hours.weekdaysOnly || !WEEKEND.includes(parts.weekday);
@@ -152,9 +164,11 @@ function nextLabOpen(date: Date, hours: LabOpenHours): Date {
  * Returns at most {@link MAX_FEASIBLE_WINDOWS} windows (earliest first) so a month-long range cannot
  * produce a huge payload.
  *
- * An infeasible window always reports `holding_exceeded`: the brief gives it precedence when both
- * causes apply, because a lab-closed delay only matters once it pushes analysis past the deadline.
- * `lab_closed` stays in the contract for the per-window detail the UI shows in R7.
+ * An infeasible window reports `outside_lab_hours` when the sampling start falls outside the lab
+ * operating hours (or on a weekend with `weekdaysOnly`): a sample cannot be taken when nobody can
+ * receive it. Otherwise the reason is `holding_exceeded`, because a lab-closed delay only matters
+ * once it pushes analysis past the deadline. `lab_closed` stays in the contract for the per-window
+ * detail the UI shows in R7.
  *
  * `holdingDeadline` is the sentinel `MAX_DATE` when `minHoldingTimeHours` is `Infinity`; the
  * service mapper turns it into `null` for the API.
@@ -186,7 +200,9 @@ export function computeFeasibleWindows(input: FeasibleWindowsInput): FeasibleWin
     const holdingDeadline = Number.isFinite(input.minHoldingTimeHours)
       ? new Date(samplingEnd.getTime() + holdingMs)
       : new Date(MAX_DATE_MS);
-    const isFeasible = analysisStart.getTime() <= holdingDeadline.getTime();
+    const isWithinLabHours = !isOutsideLabHours(samplingStart, input.labOpenHours);
+    const isWithinHoldingTime = analysisStart.getTime() <= holdingDeadline.getTime();
+    const isFeasible = isWithinLabHours && isWithinHoldingTime;
 
     windows.push({
       samplingStart,
@@ -195,7 +211,13 @@ export function computeFeasibleWindows(input: FeasibleWindowsInput): FeasibleWin
       analysisStart,
       holdingDeadline,
       isFeasible,
-      ...(isFeasible ? {} : { infeasibilityReason: 'holding_exceeded' as const }),
+      ...(isFeasible
+        ? {}
+        : {
+            infeasibilityReason: (isWithinLabHours
+              ? 'holding_exceeded'
+              : 'outside_lab_hours') as InfeasibilityReason,
+          }),
     });
   }
 
