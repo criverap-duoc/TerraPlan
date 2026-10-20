@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,6 +22,8 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { resolveRequestId } from '../../common/request-id/resolve-request-id';
+import type { RequestWithId } from '../../common/request-id/request-id.middleware';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/auth.types';
@@ -70,8 +73,9 @@ export class CampaignsController {
   create(
     @Body() dto: CreateCampaignDto,
     @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestWithId,
   ): Promise<CampaignResponseDto> {
-    return this.campaignsService.create(dto, user.userId);
+    return this.campaignsService.create(dto, user.userId, resolveRequestId(req.id));
   }
 
   @Patch(':id')
@@ -95,8 +99,16 @@ export class CampaignsController {
   transition(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: TransitionCampaignDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestWithId,
   ): Promise<CampaignResponseDto> {
-    return this.campaignsService.transition(id, dto.to, dto.reason);
+    return this.campaignsService.transition(
+      id,
+      dto.to,
+      dto.reason,
+      user.userId,
+      resolveRequestId(req.id),
+    );
   }
 
   @Post(':id/windows')
@@ -131,7 +143,11 @@ export class CampaignsController {
   @ApiOperation({ summary: 'Cancel a campaign and release its active bookings (soft delete)' })
   @ApiNoContentResponse({ description: 'Campaign cancelled' })
   @ApiConflictResponse({ description: 'The campaign cannot be cancelled from its current status' })
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.campaignsService.cancel(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestWithId,
+  ): Promise<void> {
+    return this.campaignsService.cancel(id, user.userId, resolveRequestId(req.id));
   }
 }

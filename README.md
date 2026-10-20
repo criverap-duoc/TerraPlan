@@ -43,7 +43,7 @@ curl http://localhost:3000/api/v1/health
 | R6 | Ventanas factibles | ✅ |
 | R7 | Campañas y máquina de estados | ✅ |
 | R8 | Weather/flow gate + reprogramación | ✅ |
-| R9 | Log de eventos en MongoDB | ⬜ |
+| R9 | Log de eventos en MongoDB | ✅ |
 | R10 | Publicación a AquaMetric | ⬜ |
 | R11 | Pantallas del MVP (frontend) | ⬜ |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
@@ -244,6 +244,49 @@ pronóstico y el caudal:
 Respuesta: `{ campaignId, allFeasible, transitioned, assessments[] }`, con la precipitación y el
 caudal usados en cada ventana. Sin ventanas → **400** `NO_WINDOWS_TO_CHECK`; fallo del proveedor →
 **502** `UPSTREAM_UNAVAILABLE`. Los umbrales son globales en R8 (parametrizables por sitio en R12).
+
+## Eventos de campaña (MongoDB)
+
+Cada operación relevante deja un documento **append-only** en la colección `campaign_events` de
+MongoDB. Cumple el patrón **best-effort post-commit** ([ADR-002](docs/adr/002-mongo-events.md)):
+el evento se escribe **después** del commit de PostgreSQL y, si falla, la operación de negocio igual
+se responde con éxito. El log es auditoría operativa, **no** fuente de verdad; los documentos
+expiran a los **90 días** (índice TTL sobre `at`).
+
+| Tipo | Cuándo se emite |
+|---|---|
+| `created` | Se crea una campaña |
+| `status_changed` | Cualquier transición de estado (incluye `from`, `to` y `reason`) |
+| `booking_created` | Se reservan técnico + equipo + vehículo |
+| `booking_released` | Se liberan las reservas activas |
+| `weather_blocked` | El chequeo de clima/caudal obliga a reprogramar |
+| `cancelled` | Se cancela una campaña |
+| `rescheduled` | Reservado para R10 |
+| `observations_published` | Reservado para R10 |
+
+`GET /api/v1/campaigns/:campaignId/events` (admin, coordinator, field_technician, viewer) devuelve
+los eventos más recientes primero, con filtros `type`, `before` (cursor ISO-8601) y `limit`
+(1–200, por defecto 50):
+
+```json
+{
+  "data": [
+    {
+      "id": "6712f0c1a4b8e9d2c3f4a5b6",
+      "campaignId": "0f5b7c9e-2a4d-4c8e-9b1f-3d5e7a9c1b2d",
+      "type": "status_changed",
+      "payload": { "from": "draft", "to": "planned", "reason": null },
+      "actorId": "9f8e7d6c-5b4a-4938-8271-6a5b4c3d2e1f",
+      "requestId": "c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b",
+      "at": "2026-11-16T13:05:00.000Z"
+    }
+  ],
+  "meta": { "count": 1, "nextCursor": null }
+}
+```
+
+`EventsService.record` reintenta una vez (500 ms de backoff) y nunca lanza: si ambos intentos fallan
+registra el error con `requestId` y `campaignId`, y la respuesta HTTP no cambia.
 
 ## Seeds
 

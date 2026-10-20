@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { join } from 'node:path';
@@ -13,6 +14,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
+import { EventsModule } from './modules/events/events.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { SchedulingModule } from './modules/scheduling/scheduling.module';
 import { SitesModule } from './modules/sites/sites.module';
@@ -40,10 +42,21 @@ import { WeatherModule } from './modules/weather/weather.module';
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>('MONGO_URL'),
+        serverSelectionTimeoutMS: 5_000,
+        // EventsService owns the retries, so the driver must fail fast instead of looping.
+        retryAttempts: 0,
+      }),
+    }),
     HealthModule,
     CatalogModule,
     UsersModule,
     AuthModule,
+    EventsModule,
     SitesModule,
     TechniciansModule,
     EquipmentModule,

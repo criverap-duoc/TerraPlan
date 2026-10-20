@@ -3,6 +3,7 @@ import type { CampaignsService } from '../campaigns/campaigns.service';
 import type { CampaignDetailResponseDto } from '../campaigns/dto/campaign-detail-response.dto';
 import type { CampaignWindowDto } from '../campaigns/dto/campaign-window.dto';
 import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
+import type { EventsService } from '../events/events.service';
 import type { SiteResponseDto } from '../sites/dto/site-response.dto';
 import { DEFAULT_THRESHOLDS } from './weather.constants';
 import { WeatherService } from './weather.service';
@@ -11,6 +12,8 @@ const CAMPAIGN_ID = '8a1f3c2e-4b5d-4c6e-9f70-1a2b3c4d5e6f';
 const SITE_ID = '1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
 const FIRST_WINDOW_ID = '4d3c2b1a-0f9e-4d8c-9b7a-6f5e4d3c2b1a';
 const SECOND_WINDOW_ID = '5e4d3c2b-1a0f-4e9d-8c7b-6a5f4e3d2c1b';
+const USER_ID = '9f8e7d6c-5b4a-4938-8271-6a5b4c3d2e1f';
+const REQUEST_ID = 'c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b';
 
 const SITE: SiteResponseDto = {
   id: SITE_ID,
@@ -77,6 +80,7 @@ describe('WeatherService', () => {
   let weatherProvider: { getForecast: jest.Mock };
   let flowProvider: { getFlow: jest.Mock };
   let campaigns: { findById: jest.Mock; transition: jest.Mock };
+  let events: { record: jest.Mock };
   let service: WeatherService;
 
   beforeEach(() => {
@@ -92,11 +96,13 @@ describe('WeatherService', () => {
       findById: jest.fn().mockResolvedValue(buildCampaign()),
       transition: jest.fn().mockResolvedValue(buildCampaign()),
     };
+    events = { record: jest.fn().mockResolvedValue({ recorded: true }) };
     service = new WeatherService(
       weatherProvider,
       flowProvider,
       DEFAULT_THRESHOLDS,
       campaigns as unknown as CampaignsService,
+      events as unknown as EventsService,
     );
   });
 
@@ -131,7 +137,44 @@ describe('WeatherService', () => {
       CAMPAIGN_ID,
       CampaignStatus.NeedsReschedule,
       expect.stringContaining('Clima adverso'),
+      null,
+      expect.any(String),
     );
+    expect(events.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        campaignId: CAMPAIGN_ID,
+        type: 'weather_blocked',
+        actorId: null,
+        requestId: expect.any(String),
+      }),
+    );
+  });
+
+  it('records the weather block with the caller context before transitioning', async () => {
+    campaigns.findById.mockResolvedValue(buildCampaign({ status: CampaignStatus.Confirmed }));
+    weatherProvider.getForecast.mockResolvedValue([
+      { at: FIRST_WINDOW.startsAt, precipitationMmH: 12, temperatureC: 15 },
+    ]);
+
+    await service.checkCampaign(CAMPAIGN_ID, USER_ID, REQUEST_ID);
+
+    expect(events.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        campaignId: CAMPAIGN_ID,
+        type: 'weather_blocked',
+        actorId: USER_ID,
+        requestId: REQUEST_ID,
+        payload: expect.objectContaining({ reason: expect.stringContaining('Clima adverso') }),
+      }),
+    );
+    expect(campaigns.transition).toHaveBeenCalledWith(
+      CAMPAIGN_ID,
+      CampaignStatus.NeedsReschedule,
+      expect.stringContaining('Clima adverso'),
+      USER_ID,
+      REQUEST_ID,
+    );
+    expect(events.record).toHaveBeenCalledTimes(1);
   });
 
   it('reports the blocker without transitioning a draft campaign', async () => {

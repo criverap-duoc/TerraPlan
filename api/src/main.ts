@@ -61,6 +61,7 @@ async function bootstrap(): Promise<void> {
       .addTag('reservations', 'Reserva atómica de técnico + equipo + vehículo')
       .addTag('scheduling', 'Ventanas factibles de muestreo')
       .addTag('weather', 'Chequeo de clima y caudal con reprogramación automática')
+      .addTag('events', 'Bitácora de eventos de campaña (MongoDB, solo lectura)')
       .build(),
   );
   SwaggerModule.setup('docs', app, swaggerDocument);

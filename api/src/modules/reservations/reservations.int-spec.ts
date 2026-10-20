@@ -1,5 +1,6 @@
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { MongooseModule } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'node:path';
@@ -10,6 +11,7 @@ import { CampaignsModule } from '../campaigns/campaigns.module';
 import { Campaign } from '../campaigns/entities/campaign.entity';
 import { Equipment } from '../equipment/entities/equipment.entity';
 import { EquipmentModule } from '../equipment/equipment.module';
+import { EventsService } from '../events/events.service';
 import { Technician } from '../technicians/entities/technician.entity';
 import { TechniciansModule } from '../technicians/technicians.module';
 import { Vehicle } from '../vehicles/entities/vehicle.entity';
@@ -104,6 +106,13 @@ describe('Reservations (integration)', () => {
           synchronize: false,
           logging: false,
         }),
+        // EventsModule needs a Mongoose connection to build its model; the booking assertions do
+        // not touch Mongo, so a lazy (never opened) connection keeps this suite Postgres-only.
+        MongooseModule.forRoot('mongodb://127.0.0.1:27017/terraplan_unused', {
+          lazyConnection: true,
+          serverSelectionTimeoutMS: 500,
+          retryAttempts: 0,
+        }),
         TechniciansModule,
         EquipmentModule,
         VehiclesModule,
@@ -113,6 +122,9 @@ describe('Reservations (integration)', () => {
     })
       .overrideProvider(CLOCK)
       .useValue({ now: () => FIXED_NOW })
+      // The audit log is covered by events.int-spec.ts; this suite stays Postgres-only.
+      .overrideProvider(EventsService)
+      .useValue({ record: jest.fn().mockResolvedValue({ recorded: true }) })
       .compile();
 
     await moduleRef.init();

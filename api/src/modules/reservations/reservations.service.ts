@@ -2,9 +2,12 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { DataSource } from 'typeorm';
 import { CLOCK } from '../../common/clock/clock.types';
 import type { Clock } from '../../common/clock/clock.types';
+import { resolveRequestId } from '../../common/request-id/resolve-request-id';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
 import { EquipmentService } from '../equipment/equipment.service';
+import { EventsService } from '../events/events.service';
+import { CampaignEventType } from '../events/types/campaign-event-type.enum';
 import { TechniciansService } from '../technicians/technicians.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { BookingResponseDto } from './dto/booking-response.dto';
@@ -37,9 +40,15 @@ export class ReservationsService {
     private readonly vehiclesService: VehiclesService,
     private readonly dataSource: DataSource,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly eventsService: EventsService,
   ) {}
 
-  async bookTriple(campaignId: string, dto: CreateBookingDto): Promise<BookingResponseDto> {
+  async bookTriple(
+    campaignId: string,
+    dto: CreateBookingDto,
+    actorId: string | null = null,
+    requestId?: string,
+  ): Promise<BookingResponseDto> {
     const startsAt = new Date(dto.startsAt);
     const endsAt = new Date(dto.endsAt);
 
@@ -93,6 +102,24 @@ export class ReservationsService {
 
       await queryRunner.commitTransaction();
 
+      // Post-commit: the booking already exists, so the event is audit only.
+      await this.eventsService.record({
+        campaignId,
+        type: CampaignEventType.BookingCreated,
+        payload: {
+          bookings: bookings.map((booking) => ({
+            id: booking.id,
+            resourceType: booking.resourceType,
+            resourceId: booking.resourceId,
+            during: booking.during,
+          })),
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+        },
+        actorId,
+        requestId: resolveRequestId(requestId),
+      });
+
       return this.toResponse(campaignId, bookings);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -107,10 +134,24 @@ export class ReservationsService {
     }
   }
 
-  async releaseByCampaign(campaignId: string): Promise<number> {
+  async releaseByCampaign(
+    campaignId: string,
+    actorId: string | null = null,
+    requestId?: string,
+  ): Promise<number> {
     await this.ensureCampaignExists(campaignId);
 
-    return this.reservationsRepository.releaseByCampaign(campaignId);
+    const count = await this.reservationsRepository.releaseByCampaign(campaignId);
+
+    await this.eventsService.record({
+      campaignId,
+      type: CampaignEventType.BookingReleased,
+      payload: { count },
+      actorId,
+      requestId: resolveRequestId(requestId),
+    });
+
+    return count;
   }
 
   async listByCampaign(campaignId: string): Promise<BookingRowDto[]> {

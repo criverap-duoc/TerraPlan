@@ -5,7 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { isUniqueViolation } from '../../common/database/is-unique-violation';
+import { resolveRequestId } from '../../common/request-id/resolve-request-id';
 import { CatalogService } from '../catalog/catalog.service';
+import { EventsService } from '../events/events.service';
+import { CampaignEventType } from '../events/types/campaign-event-type.enum';
 import { ReservationsRepository } from '../reservations/reservations.repository';
 import { SitesService } from '../sites/sites.service';
 import { assertTransition } from './campaign-status.domain';
@@ -44,9 +47,14 @@ export class CampaignsService {
     private readonly reservationsRepository: ReservationsRepository,
     private readonly catalogService: CatalogService,
     private readonly sitesService: SitesService,
+    private readonly eventsService: EventsService,
   ) {}
 
-  async create(dto: CreateCampaignDto, userId: string): Promise<CampaignResponseDto> {
+  async create(
+    dto: CreateCampaignDto,
+    userId: string,
+    requestId?: string,
+  ): Promise<CampaignResponseDto> {
     const site = await this.sitesService.findById(dto.siteId);
 
     if (!site.isActive) {
@@ -66,6 +74,15 @@ export class CampaignsService {
         },
         parameterCodes,
       );
+
+      // Post-commit and best-effort: a lost event never rolls back the campaign.
+      await this.eventsService.record({
+        campaignId: campaign.id,
+        type: CampaignEventType.Created,
+        payload: { code: campaign.code, siteId: campaign.siteId },
+        actorId: userId,
+        requestId: resolveRequestId(requestId),
+      });
 
       return this.toResponse(campaign);
     } catch (error) {
@@ -150,7 +167,13 @@ export class CampaignsService {
     return this.toResponse(await this.getCampaignOrFail(id));
   }
 
-  async transition(id: string, to: CampaignStatus, reason?: string): Promise<CampaignResponseDto> {
+  async transition(
+    id: string,
+    to: CampaignStatus,
+    reason?: string,
+    actorId: string | null = null,
+    requestId?: string,
+  ): Promise<CampaignResponseDto> {
     const campaign = await this.getCampaignOrFail(id);
 
     if (to === CampaignStatus.Cancelled && campaign.status === CampaignStatus.Cancelled) {
@@ -187,6 +210,14 @@ export class CampaignsService {
       throw new InvalidStateTransitionError(CONCURRENT_TRANSITION);
     }
 
+    await this.eventsService.record({
+      campaignId: id,
+      type: CampaignEventType.StatusChanged,
+      payload: { from: campaign.status, to, reason: trimmedReason ?? null },
+      actorId,
+      requestId: resolveRequestId(requestId),
+    });
+
     return this.toResponse(await this.getCampaignOrFail(id));
   }
 
@@ -217,7 +248,7 @@ export class CampaignsService {
     return this.findById(id);
   }
 
-  async cancel(id: string): Promise<void> {
+  async cancel(id: string, actorId: string | null = null, requestId?: string): Promise<void> {
     const campaign = await this.getCampaignOrFail(id);
 
     if (campaign.status === CampaignStatus.Cancelled) {
@@ -237,6 +268,14 @@ export class CampaignsService {
     if (!updated) {
       throw new InvalidStateTransitionError(CONCURRENT_TRANSITION);
     }
+
+    await this.eventsService.record({
+      campaignId: id,
+      type: CampaignEventType.Cancelled,
+      payload: { from: campaign.status, reason: CANCELLED_NOTE },
+      actorId,
+      requestId: resolveRequestId(requestId),
+    });
   }
 
   private async assertPreconditions(campaign: Campaign, to: CampaignStatus): Promise<void> {

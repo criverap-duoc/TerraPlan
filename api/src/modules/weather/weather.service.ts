@@ -1,6 +1,9 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { resolveRequestId } from '../../common/request-id/resolve-request-id';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
+import { EventsService } from '../events/events.service';
+import { CampaignEventType } from '../events/types/campaign-event-type.enum';
 import { assessWeather } from './assess-weather.domain';
 import type { WeatherAssessment } from './assess-weather.domain';
 import { WeatherAssessmentDto } from './dto/weather-assessment.dto';
@@ -20,9 +23,15 @@ export class WeatherService {
     @Inject(FLOW_PROVIDER) private readonly flowProvider: FlowProvider,
     @Inject(WEATHER_THRESHOLDS) private readonly thresholds: WeatherThresholds,
     private readonly campaignsService: CampaignsService,
+    private readonly eventsService: EventsService,
   ) {}
 
-  async checkCampaign(campaignId: string): Promise<WeatherCheckResponseDto> {
+  async checkCampaign(
+    campaignId: string,
+    actorId: string | null = null,
+    requestId?: string,
+  ): Promise<WeatherCheckResponseDto> {
+    const resolvedRequestId = resolveRequestId(requestId);
     const campaign = await this.campaignsService.findById(campaignId);
 
     if (!campaign.site) {
@@ -68,6 +77,8 @@ export class WeatherService {
       campaignId,
       campaign.status,
       assessments,
+      actorId,
+      resolvedRequestId,
     );
 
     return {
@@ -82,6 +93,8 @@ export class WeatherService {
     campaignId: string,
     status: CampaignStatus,
     assessments: WeatherAssessment[],
+    actorId: string | null,
+    requestId: string,
   ): Promise<boolean> {
     const blocked = assessments.find((assessment) => !assessment.isFeasible);
 
@@ -89,11 +102,23 @@ export class WeatherService {
       return false;
     }
 
-    // CampaignsService.transition releases the active bookings as part of the transition.
+    const reason = this.buildReason(blocked);
+
+    await this.eventsService.record({
+      campaignId,
+      type: CampaignEventType.WeatherBlocked,
+      payload: { assessments: assessments.map((assessment) => this.toDto(assessment)), reason },
+      actorId,
+      requestId,
+    });
+
+    // CampaignsService.transition releases the active bookings and emits its own status_changed.
     await this.campaignsService.transition(
       campaignId,
       CampaignStatus.NeedsReschedule,
-      this.buildReason(blocked),
+      reason,
+      actorId,
+      requestId,
     );
 
     return true;

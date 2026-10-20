@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogModule } from '../catalog/catalog.module';
+import { EventsModule } from '../events/events.module';
 import { ResourceBooking } from '../reservations/entities/resource-booking.entity';
 import { ReservationsRepository } from '../reservations/reservations.repository';
 import { SitesModule } from '../sites/sites.module';
@@ -18,6 +19,7 @@ import { Campaign } from './entities/campaign.entity';
     TypeOrmModule.forFeature([Campaign, CampaignParameter, CampaignWindow, ResourceBooking]),
     CatalogModule,
     SitesModule,
+    EventsModule,
   ],
   controllers: [CampaignsController],
   providers: [CampaignsService, CampaignsRepository, ReservationsRepository],

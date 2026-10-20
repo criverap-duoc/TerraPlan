@@ -1,6 +1,10 @@
-import { Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { resolveRequestId } from '../../common/request-id/resolve-request-id';
+import type { RequestWithId } from '../../common/request-id/request-id.middleware';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '../auth/types/auth.types';
 import { Role } from '../auth/types/role.enum';
 import { WeatherCheckResponseDto } from './dto/weather-check-response.dto';
 import { WeatherService } from './weather.service';
@@ -18,7 +22,9 @@ export class WeatherController {
   @ApiOkResponse({ type: WeatherCheckResponseDto })
   check(
     @Param('campaignId', ParseUUIDPipe) campaignId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: RequestWithId,
   ): Promise<WeatherCheckResponseDto> {
-    return this.weatherService.checkCampaign(campaignId);
+    return this.weatherService.checkCampaign(campaignId, user.userId, resolveRequestId(req.id));
   }
 }

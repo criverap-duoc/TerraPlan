@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { CatalogService } from '../catalog/catalog.service';
 import type { ParameterResponseDto } from '../catalog/dto/parameter-response.dto';
+import type { EventsService } from '../events/events.service';
 import type { ReservationsRepository } from '../reservations/reservations.repository';
 import type { SiteResponseDto } from '../sites/dto/site-response.dto';
 import type { SitesService } from '../sites/sites.service';
@@ -14,6 +15,7 @@ const CAMPAIGN_ID = '8a1f3c2e-4b5d-4c6e-9f70-1a2b3c4d5e6f';
 const SITE_ID = '1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
 const USER_ID = '9f8e7d6c-5b4a-4938-8271-6a5b4c3d2e1f';
 const WINDOW_ID = '4d3c2b1a-0f9e-4d8c-9b7a-6f5e4d3c2b1a';
+const REQUEST_ID = 'c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b';
 
 const CATALOG = ['PH', 'TURB', 'N_NO3'].map((code) => ({ code })) as unknown as ParameterResponseDto[];
 
@@ -68,6 +70,7 @@ describe('CampaignsService', () => {
   let reservations: { releaseByCampaign: jest.Mock };
   let catalog: { getParameters: jest.Mock };
   let sites: { findById: jest.Mock };
+  let events: { record: jest.Mock };
   let service: CampaignsService;
 
   beforeEach(() => {
@@ -88,11 +91,13 @@ describe('CampaignsService', () => {
     reservations = { releaseByCampaign: jest.fn().mockResolvedValue(3) };
     catalog = { getParameters: jest.fn().mockReturnValue(CATALOG) };
     sites = { findById: jest.fn().mockResolvedValue(SITE) };
+    events = { record: jest.fn().mockResolvedValue({ recorded: true }) };
     service = new CampaignsService(
       repository as unknown as CampaignsRepository,
       reservations as unknown as ReservationsRepository,
       catalog as unknown as CatalogService,
       sites as unknown as SitesService,
+      events as unknown as EventsService,
     );
   });
 
@@ -107,6 +112,20 @@ describe('CampaignsService', () => {
     );
     expect(result.status).toBe(CampaignStatus.Draft);
     expect(result.siteId).toBe(SITE_ID);
+  });
+
+  it('records a created event after the campaign is committed', async () => {
+    repository.createWithParameters.mockResolvedValue(buildCampaign());
+
+    await service.create(CREATE_DTO, USER_ID, REQUEST_ID);
+
+    expect(events.record).toHaveBeenCalledWith({
+      campaignId: CAMPAIGN_ID,
+      type: 'created',
+      payload: { code: 'CAMP-2026-0100', siteId: SITE_ID },
+      actorId: USER_ID,
+      requestId: REQUEST_ID,
+    });
   });
 
   it('throws 404 when the site does not exist', async () => {
@@ -176,6 +195,26 @@ describe('CampaignsService', () => {
       CampaignStatus.Planned,
       undefined,
     );
+  });
+
+  it('records a status_changed event with the previous and the next status', async () => {
+    repository.hasWindows.mockResolvedValue(true);
+
+    await service.transition(
+      CAMPAIGN_ID,
+      CampaignStatus.Planned,
+      undefined,
+      USER_ID,
+      REQUEST_ID,
+    );
+
+    expect(events.record).toHaveBeenCalledWith({
+      campaignId: CAMPAIGN_ID,
+      type: 'status_changed',
+      payload: { from: CampaignStatus.Draft, to: CampaignStatus.Planned, reason: null },
+      actorId: USER_ID,
+      requestId: REQUEST_ID,
+    });
   });
 
   it('rejects planned to confirmed without an active reservation', async () => {

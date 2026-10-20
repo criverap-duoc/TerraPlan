@@ -4,6 +4,7 @@ import { CLOCK } from '../../common/clock/clock.types';
 import { SystemClock } from '../../common/clock/system-clock';
 import { CampaignsModule } from '../campaigns/campaigns.module';
 import { EquipmentModule } from '../equipment/equipment.module';
+import { EventsModule } from '../events/events.module';
 import { TechniciansModule } from '../technicians/technicians.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { ResourceBooking } from './entities/resource-booking.entity';
@@ -15,6 +16,7 @@ import { ReservationsService } from './reservations.service';
   imports: [
     TypeOrmModule.forFeature([ResourceBooking]),
     CampaignsModule,
+    EventsModule,
     TechniciansModule,
     EquipmentModule,
     VehiclesModule,

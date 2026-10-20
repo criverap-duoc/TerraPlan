@@ -4,6 +4,7 @@ import type { Clock } from '../../common/clock/clock.types';
 import type { CampaignsService } from '../campaigns/campaigns.service';
 import { CampaignStatus } from '../campaigns/types/campaign-status.enum';
 import type { EquipmentService } from '../equipment/equipment.service';
+import type { EventsService } from '../events/events.service';
 import type { TechniciansService } from '../technicians/technicians.service';
 import type { VehiclesService } from '../vehicles/vehicles.service';
 import type { CreateBookingDto } from './dto/create-booking.dto';
@@ -17,6 +18,8 @@ const TECHNICIAN_ID = '5f1c3a9e-8a43-4f0e-9d0b-2c6b7f1a0d11';
 const EQUIPMENT_ID = '9b2d4c11-7e6a-4c39-8a1f-3d5e6f7a8b9c';
 const VEHICLE_ID = '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
 const NOW = new Date('2026-01-01T00:00:00Z');
+const USER_ID = '9f8e7d6c-5b4a-4938-8271-6a5b4c3d2e1f';
+const REQUEST_ID = 'c1a2b3c4-d5e6-4f70-8a9b-0c1d2e3f4a5b';
 
 const WINDOW = { startsAt: '2026-11-15T13:00:00Z', endsAt: '2026-11-15T17:00:00Z' };
 
@@ -50,6 +53,7 @@ describe('ReservationsService', () => {
     release: jest.Mock;
   };
   let clock: Clock;
+  let events: { record: jest.Mock };
   let service: ReservationsService;
   let dto: CreateBookingDto;
 
@@ -83,6 +87,7 @@ describe('ReservationsService', () => {
       release: jest.fn(),
     };
     clock = { now: () => NOW };
+    events = { record: jest.fn().mockResolvedValue({ recorded: true }) };
     dto = {
       technicianId: TECHNICIAN_ID,
       equipmentId: EQUIPMENT_ID,
@@ -98,6 +103,7 @@ describe('ReservationsService', () => {
       vehiclesService as unknown as VehiclesService,
       { createQueryRunner: () => queryRunner } as unknown as DataSource,
       clock,
+      events as unknown as EventsService,
     );
   });
 
@@ -221,6 +227,49 @@ describe('ReservationsService', () => {
 
     await expect(service.releaseByCampaign(CAMPAIGN_ID)).resolves.toBe(3);
     expect(repository.releaseByCampaign).toHaveBeenCalledWith(CAMPAIGN_ID);
+  });
+
+  it('records a booking_created event with the three bookings', async () => {
+    const bookings = [
+      buildRow('technician', TECHNICIAN_ID),
+      buildRow('equipment', EQUIPMENT_ID),
+      buildRow('vehicle', VEHICLE_ID),
+    ];
+    repository.bookTriple.mockResolvedValue(bookings);
+
+    await service.bookTriple(CAMPAIGN_ID, dto, USER_ID, REQUEST_ID);
+
+    expect(events.record).toHaveBeenCalledWith({
+      campaignId: CAMPAIGN_ID,
+      type: 'booking_created',
+      payload: {
+        bookings: bookings.map((booking) => ({
+          id: booking.id,
+          resourceType: booking.resourceType,
+          resourceId: booking.resourceId,
+          during: booking.during,
+        })),
+        startsAt: '2026-11-15T13:00:00.000Z',
+        endsAt: '2026-11-15T17:00:00.000Z',
+      },
+      actorId: USER_ID,
+      requestId: REQUEST_ID,
+    });
+  });
+
+  it('records a booking_released event with the released count', async () => {
+    repository.releaseByCampaign.mockResolvedValue(3);
+
+    const count = await service.releaseByCampaign(CAMPAIGN_ID, USER_ID, REQUEST_ID);
+
+    expect(count).toBe(3);
+    expect(events.record).toHaveBeenCalledWith({
+      campaignId: CAMPAIGN_ID,
+      type: 'booking_released',
+      payload: { count: 3 },
+      actorId: USER_ID,
+      requestId: REQUEST_ID,
+    });
   });
 
   it('lists the active bookings of a campaign', async () => {
