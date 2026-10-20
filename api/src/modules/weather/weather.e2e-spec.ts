@@ -157,6 +157,7 @@ describe('Weather (e2e)', () => {
   });
 
   afterAll(async () => {
+    await dataSource.query("DELETE FROM campaign WHERE code LIKE 'TEST-WEATHER%'");
     await app.close();
   });
 

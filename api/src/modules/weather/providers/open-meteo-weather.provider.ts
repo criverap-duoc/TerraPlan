@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UpstreamUnavailableError } from '../../../common/errors/upstream-unavailable.error';
 import type {
@@ -28,6 +28,7 @@ interface OpenMeteoResponse {
  */
 @Injectable()
 export class OpenMeteoWeatherProvider implements WeatherProvider {
+  private readonly logger = new Logger(OpenMeteoWeatherProvider.name);
   private readonly baseUrl: string;
 
   constructor(configService: ConfigService) {
@@ -54,10 +55,14 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
   }
 
   private async fetchWithRetry(url: string): Promise<OpenMeteoResponse> {
+    let lastError: unknown;
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
         return await this.fetchOnce(url);
-      } catch {
+      } catch (error) {
+        lastError = error;
+
         if (attempt === MAX_ATTEMPTS) {
           break;
         }
@@ -66,8 +71,15 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
       }
     }
 
+    // The original error distinguishes HTTP 4xx/5xx from timeouts and DNS failures in the logs.
+    this.logger.error(
+      { err: lastError, cause: errorCause(lastError), url },
+      'Open-Meteo request failed after retry',
+    );
+
     throw new UpstreamUnavailableError(
       'No fue posible obtener el pronóstico del clima. Intenta nuevamente en unos minutos.',
+      { cause: lastError },
     );
   }
 
@@ -137,4 +149,8 @@ function parseHourlyUtc(value: string): Date | null {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorCause(error: unknown): unknown {
+  return error instanceof Error ? error.cause : undefined;
 }

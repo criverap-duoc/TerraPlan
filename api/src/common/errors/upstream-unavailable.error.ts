@@ -4,7 +4,10 @@ export class UpstreamUnavailableError extends DomainError {
   readonly code = 'UPSTREAM_UNAVAILABLE';
   readonly status = 502;
 
-  constructor(message = 'Un servicio externo no está disponible en este momento.') {
-    super(message);
+  constructor(
+    message = 'Un servicio externo no está disponible en este momento.',
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
   }
 }

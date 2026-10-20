@@ -3,11 +3,11 @@ import { createHash } from 'node:crypto';
 import type { FlowProvider, FlowReading } from '../ports/flow-provider.interface';
 import type { SiteRef } from '../ports/weather-provider.interface';
 
-const FLOW_RANGE_FACTOR = 500;
+const FLOW_RANGE_FACTOR = 501;
 const FLOW_BASE_M3S = 0.5;
 
 /**
- * Simulated flow provider for the MVP: deterministic hash-based values in [0.5, 50.4] m3/s.
+ * Simulated flow provider for the MVP: deterministic hash-based values in [0.5, 50.5] m3/s.
  * Replace with a real DGA API adapter once the integration is approved.
  */
 @Injectable()
