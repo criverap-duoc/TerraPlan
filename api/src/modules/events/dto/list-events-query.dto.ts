@@ -1,11 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsISO8601, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { CAMPAIGN_EVENT_TYPES } from '../types/campaign-event-type.enum';
 import type { CampaignEventType } from '../types/campaign-event-type.enum';
 
 export const DEFAULT_EVENT_LIMIT = 50;
 export const MAX_EVENT_LIMIT = 200;
+export const BASE64_CURSOR_PATTERN = /^[A-Za-z0-9+/=]+$/;
 
 export class ListEventsQueryDto {
   @ApiPropertyOptional({ enum: CAMPAIGN_EVENT_TYPES, enumName: 'CampaignEventType' })
@@ -14,11 +15,12 @@ export class ListEventsQueryDto {
   type?: CampaignEventType;
 
   @ApiPropertyOptional({
-    example: '2026-11-01T13:05:00Z',
-    description: 'Only events recorded strictly before this instant (cursor pagination)',
+    example: 'eyJhdCI6IjIwMjYtMTEtMDFUMTM6MDU6MDBaIiwiaWQiOiI2NzJhIn0=',
+    description: 'Opaque cursor from meta.nextCursor (base64 of { at, id })',
   })
   @IsOptional()
-  @IsISO8601({ strict: true })
+  @IsString()
+  @Matches(BASE64_CURSOR_PATTERN, { message: 'before must be a base64 pagination cursor' })
   before?: string;
 
   @ApiPropertyOptional({

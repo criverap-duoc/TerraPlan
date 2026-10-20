@@ -214,7 +214,78 @@ describe('Events (e2e)', () => {
 
     expect(body.data).toHaveLength(1);
     expect(body.meta.count).toBe(1);
-    expect(body.meta.nextCursor).toBe(body.data[0].at);
+    expect(body.meta.nextCursor).toEqual(expect.any(String));
+    expect(decodeCursor(body.meta.nextCursor as string)).toEqual({
+      at: body.data[0].at,
+      id: body.data[0].id,
+    });
+  });
+
+  it('paginates stably when events share the same instant', async () => {
+    const campaignId = await createPlannedCampaign();
+    const sharedAt = new Date('2026-10-19T14:05:00Z');
+
+    await eventModel.deleteMany({ campaignId });
+    await eventModel.collection.insertMany([
+      { campaignId, type: 'created', payload: {}, actorId: null, requestId: 'req-a', at: sharedAt },
+      {
+        campaignId,
+        type: 'status_changed',
+        payload: {},
+        actorId: null,
+        requestId: 'req-b',
+        at: sharedAt,
+      },
+      {
+        campaignId,
+        type: 'weather_blocked',
+        payload: {},
+        actorId: null,
+        requestId: 'req-c',
+        at: new Date('2026-10-19T14:00:00Z'),
+      },
+      {
+        campaignId,
+        type: 'cancelled',
+        payload: {},
+        actorId: null,
+        requestId: 'req-d',
+        at: new Date('2026-10-19T13:55:00Z'),
+      },
+    ]);
+
+    const first = await request(app.getHttpServer())
+      .get(`/${API_PREFIX}/campaigns/${campaignId}/events?limit=2`)
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+
+    expect(first.status).toBe(200);
+
+    const firstPage = first.body as ListEventsBody;
+
+    expect(firstPage.data).toHaveLength(2);
+    expect(firstPage.meta.nextCursor).toEqual(expect.any(String));
+
+    const second = await request(app.getHttpServer())
+      .get(
+        `/${API_PREFIX}/campaigns/${campaignId}/events?limit=2&before=${encodeURIComponent(
+          firstPage.meta.nextCursor as string,
+        )}`,
+      )
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+
+    expect(second.status).toBe(200);
+
+    const secondPage = second.body as ListEventsBody;
+
+    expect(secondPage.data).toHaveLength(2);
+    expect(secondPage.meta.nextCursor).toBeNull();
+    expect([...firstPage.data, ...secondPage.data].map((event) => event.requestId)).toEqual([
+      'req-b',
+      'req-a',
+      'req-c',
+      'req-d',
+    ]);
+    expect(new Set([...firstPage.data, ...secondPage.data].map((event) => event.id)).size).toBe(4);
   });
 
   it('rejects a request without a token', async () => {
@@ -236,3 +307,7 @@ describe('Events (e2e)', () => {
     expect((response.body as ListEventsBody).data.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+function decodeCursor(cursor: string): { at: string; id: string } {
+  return JSON.parse(Buffer.from(cursor, 'base64').toString('utf8')) as { at: string; id: string };
+}

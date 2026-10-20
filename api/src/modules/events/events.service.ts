@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model, QueryFilter, Types } from 'mongoose';
 import { EventResponseDto } from './dto/event-response.dto';
@@ -91,13 +91,16 @@ export class EventsService {
       query.type = filters.type;
     }
 
-    if (filters.before) {
-      query.at = { $lt: new Date(filters.before) };
+    const cursor = filters.before ? parseCursor(filters.before) : null;
+
+    if (cursor) {
+      // `at` alone is not unique: two events can share the millisecond, so the id breaks the tie.
+      query.$or = [{ at: { $lt: cursor.at } }, { at: cursor.at, _id: { $lt: cursor.id } }];
     }
 
     const documents = (await this.eventModel
       .find(query)
-      .sort({ at: -1 })
+      .sort({ at: -1, _id: -1 })
       .limit(limit)
       .lean()
       .exec()) as unknown as CampaignEventDocument[];
@@ -108,10 +111,47 @@ export class EventsService {
       data,
       meta: {
         count: data.length,
-        nextCursor: data.length === limit ? data[data.length - 1].at : null,
+        nextCursor:
+          documents.length === limit ? encodeCursor(documents[documents.length - 1]) : null,
       },
     };
   }
+}
+
+interface EventCursor {
+  at: Date;
+  id: string;
+}
+
+function encodeCursor(document: CampaignEventDocument): string {
+  const payload = { at: new Date(document.at).toISOString(), id: document._id.toString() };
+
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+}
+
+function parseCursor(value: string): EventCursor {
+  let payload: { at?: unknown; id?: unknown } | null = null;
+
+  try {
+    payload = JSON.parse(Buffer.from(value, 'base64').toString('utf8')) as {
+      at?: unknown;
+      id?: unknown;
+    };
+  } catch {
+    payload = null; // Malformed base64 or JSON: handled as an invalid cursor below.
+  }
+
+  const at = typeof payload?.at === 'string' ? new Date(payload.at) : null;
+  const id = typeof payload?.id === 'string' ? payload.id : '';
+
+  if (at === null || Number.isNaN(at.getTime()) || id.length === 0) {
+    throw new BadRequestException({
+      code: 'VALIDATION_ERROR',
+      message: 'El cursor de paginación no es válido.',
+    });
+  }
+
+  return { at, id };
 }
 
 function toResponseDto(document: CampaignEventDocument): EventResponseDto {

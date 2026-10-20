@@ -150,7 +150,7 @@ describe('WeatherService', () => {
     );
   });
 
-  it('records the weather block with the caller context before transitioning', async () => {
+  it('records the weather block after a successful transition', async () => {
     campaigns.findById.mockResolvedValue(buildCampaign({ status: CampaignStatus.Confirmed }));
     weatherProvider.getForecast.mockResolvedValue([
       { at: FIRST_WINDOW.startsAt, precipitationMmH: 12, temperatureC: 15 },
@@ -158,6 +158,13 @@ describe('WeatherService', () => {
 
     await service.checkCampaign(CAMPAIGN_ID, USER_ID, REQUEST_ID);
 
+    expect(campaigns.transition).toHaveBeenCalledWith(
+      CAMPAIGN_ID,
+      CampaignStatus.NeedsReschedule,
+      expect.stringContaining('Clima adverso'),
+      USER_ID,
+      REQUEST_ID,
+    );
     expect(events.record).toHaveBeenCalledWith(
       expect.objectContaining({
         campaignId: CAMPAIGN_ID,
@@ -167,14 +174,21 @@ describe('WeatherService', () => {
         payload: expect.objectContaining({ reason: expect.stringContaining('Clima adverso') }),
       }),
     );
-    expect(campaigns.transition).toHaveBeenCalledWith(
-      CAMPAIGN_ID,
-      CampaignStatus.NeedsReschedule,
-      expect.stringContaining('Clima adverso'),
-      USER_ID,
-      REQUEST_ID,
+    expect(campaigns.transition.mock.invocationCallOrder[0]).toBeLessThan(
+      events.record.mock.invocationCallOrder[0],
     );
-    expect(events.record).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not record the weather block when the transition fails', async () => {
+    campaigns.findById.mockResolvedValue(buildCampaign({ status: CampaignStatus.Confirmed }));
+    weatherProvider.getForecast.mockResolvedValue([
+      { at: FIRST_WINDOW.startsAt, precipitationMmH: 12, temperatureC: 15 },
+    ]);
+    const failure = new Error('transition rejected');
+    campaigns.transition.mockRejectedValue(failure);
+
+    await expect(service.checkCampaign(CAMPAIGN_ID)).rejects.toBe(failure);
+    expect(events.record).not.toHaveBeenCalled();
   });
 
   it('reports the blocker without transitioning a draft campaign', async () => {

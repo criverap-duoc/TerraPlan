@@ -115,32 +115,83 @@ describe('EventsService', () => {
       campaignId: CAMPAIGN_ID,
       type: CampaignEventType.StatusChanged,
     });
-    expect(sort).toHaveBeenCalledWith({ at: -1 });
+    expect(sort).toHaveBeenCalledWith({ at: -1, _id: -1 });
     expect(limit).toHaveBeenCalledWith(50);
     expect(result.data.map((event) => event.id)).toEqual(['event-2', 'event-1']);
     expect(result.data[0].at).toBe('2026-10-19T14:10:00.000Z');
     expect(result.meta).toEqual({ count: 2, nextCursor: null });
   });
 
-  it('returns the last event instant as the cursor when the page is full', async () => {
-    exec.mockResolvedValue([buildDocument({ at: new Date('2026-10-19T14:05:00Z') })]);
+  it('returns an opaque cursor with the last event instant and id when the page is full', async () => {
+    const at = new Date('2026-10-19T14:05:00Z');
+    exec.mockResolvedValue([buildDocument({ _id: { toString: () => 'event-9' }, at })]);
 
     const result = await service.listByCampaign(CAMPAIGN_ID, { limit: 1 });
 
-    expect(result.meta).toEqual({ count: 1, nextCursor: '2026-10-19T14:05:00.000Z' });
+    expect(result.meta.count).toBe(1);
+    expect(result.meta.nextCursor).toEqual(expect.any(String));
+    expect(decodeCursor(result.meta.nextCursor as string)).toEqual({
+      at: at.toISOString(),
+      id: 'event-9',
+    });
   });
 
-  it('filters events recorded before the given cursor', async () => {
+  it('filters events before the cursor using the id as tiebreaker', async () => {
     exec.mockResolvedValue([]);
+    const at = new Date('2026-10-19T14:05:00Z');
+    const before = Buffer.from(JSON.stringify({ at: at.toISOString(), id: 'event-9' })).toString(
+      'base64',
+    );
 
-    await service.listByCampaign(CAMPAIGN_ID, {
-      before: '2026-10-19T14:05:00Z',
-      limit: 50,
-    });
+    await service.listByCampaign(CAMPAIGN_ID, { before, limit: 50 });
 
     expect(find).toHaveBeenCalledWith({
       campaignId: CAMPAIGN_ID,
-      at: { $lt: new Date('2026-10-19T14:05:00Z') },
+      $or: [{ at: { $lt: at } }, { at, _id: { $lt: 'event-9' } }],
     });
   });
+
+  it('paginates stably when events share the same at', async () => {
+    const at = new Date('2026-10-19T14:05:00Z');
+    const documents = ['event-a', 'event-b', 'event-c'].map((id) =>
+      buildDocument({ _id: { toString: () => id }, at }),
+    );
+    exec
+      .mockResolvedValueOnce(documents.slice(0, 2))
+      .mockResolvedValueOnce(documents.slice(2));
+
+    const first = await service.listByCampaign(CAMPAIGN_ID, { limit: 2 });
+
+    expect(first.data.map((event) => event.id)).toEqual(['event-a', 'event-b']);
+    expect(decodeCursor(first.meta.nextCursor as string)).toEqual({
+      at: at.toISOString(),
+      id: 'event-b',
+    });
+
+    const second = await service.listByCampaign(CAMPAIGN_ID, {
+      limit: 2,
+      before: first.meta.nextCursor as string,
+    });
+
+    expect(second.data.map((event) => event.id)).toEqual(['event-c']);
+    expect(second.meta.nextCursor).toBeNull();
+    expect(find).toHaveBeenLastCalledWith({
+      campaignId: CAMPAIGN_ID,
+      $or: [{ at: { $lt: at } }, { at, _id: { $lt: 'event-b' } }],
+    });
+    expect(new Set([...first.data, ...second.data].map((event) => event.id)).size).toBe(3);
+  });
+
+  it('rejects a cursor that is not a valid encoded { at, id }', async () => {
+    const before = Buffer.from('not-json').toString('base64');
+
+    await expect(service.listByCampaign(CAMPAIGN_ID, { before, limit: 2 })).rejects.toMatchObject({
+      response: { code: 'VALIDATION_ERROR' },
+    });
+    expect(find).not.toHaveBeenCalled();
+  });
 });
+
+function decodeCursor(cursor: string): { at: string; id: string } {
+  return JSON.parse(Buffer.from(cursor, 'base64').toString('utf8')) as { at: string; id: string };
+}

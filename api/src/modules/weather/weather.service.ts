@@ -104,15 +104,9 @@ export class WeatherService {
 
     const reason = this.buildReason(blocked);
 
-    await this.eventsService.record({
-      campaignId,
-      type: CampaignEventType.WeatherBlocked,
-      payload: { assessments: assessments.map((assessment) => this.toDto(assessment)), reason },
-      actorId,
-      requestId,
-    });
-
     // CampaignsService.transition releases the active bookings and emits its own status_changed.
+    // The blocking event is recorded only once the transition succeeded, so a rejected transition
+    // never leaves a weather_blocked entry without the matching state change.
     await this.campaignsService.transition(
       campaignId,
       CampaignStatus.NeedsReschedule,
@@ -120,6 +114,14 @@ export class WeatherService {
       actorId,
       requestId,
     );
+
+    await this.eventsService.record({
+      campaignId,
+      type: CampaignEventType.WeatherBlocked,
+      payload: { assessments: assessments.map((assessment) => this.toDto(assessment)), reason },
+      actorId,
+      requestId,
+    });
 
     return true;
   }
