@@ -15,6 +15,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
 import { EventsModule } from './modules/events/events.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { SchedulingModule } from './modules/scheduling/scheduling.module';
 import { SitesModule } from './modules/sites/sites.module';
@@ -65,6 +66,7 @@ import { WeatherModule } from './modules/weather/weather.module';
     ReservationsModule,
     SchedulingModule,
     WeatherModule,
+    IntegrationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

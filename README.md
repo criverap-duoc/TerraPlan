@@ -44,7 +44,7 @@ curl http://localhost:3000/api/v1/health
 | R7 | Campañas y máquina de estados | ✅ |
 | R8 | Weather/flow gate + reprogramación | ✅ |
 | R9 | Log de eventos en MongoDB | ✅ |
-| R10 | Publicación a AquaMetric | ⬜ |
+| R10 | Publicación a AquaMetric | ✅ |
 | R11 | Pantallas del MVP (frontend) | ⬜ |
 | R12 | k6, deploy free tier y documentación final | ⬜ |
 
@@ -261,8 +261,8 @@ expiran a los **90 días** (índice TTL sobre `at`).
 | `booking_released` | Se liberan las reservas activas |
 | `weather_blocked` | El chequeo de clima/caudal obliga a reprogramar |
 | `cancelled` | Se cancela una campaña |
-| `rescheduled` | Reservado para R10 |
-| `observations_published` | Reservado para R10 |
+| `rescheduled` | Reservado para una rebanada futura (la reprogramación actual se audita con `weather_blocked` + `status_changed`) |
+| `observations_published` | El lote se publicó con éxito en AquaMetric (incluye `catalogVersion`, `siteCode`, `observationCount` e `idempotencyKey`) |
 
 `GET /api/v1/campaigns/:campaignId/events` (admin, coordinator, field_technician, viewer) devuelve
 los eventos más recientes primero, con filtros `type`, `before` (cursor ISO-8601) y `limit`
@@ -288,6 +288,42 @@ los eventos más recientes primero, con filtros `type`, `before` (cursor ISO-860
 `EventsService.record` reintenta una vez (500 ms de backoff) y nunca lanza: si ambos intentos fallan
 registra el error con `requestId` y `campaignId`, y la respuesta HTTP no cambia.
 
+## Integración con AquaMetric (R10)
+
+`POST /api/v1/campaigns/:campaignId/publish` (admin, coordinator) envía el lote de la campaña al
+proyecto hermano **AquaMetric**: `POST {AQUAMETRIC_URL}/api/v1/ingest/observations` con `X-API-Key`
+e `Idempotency-Key`. El contrato de los datos es el del catálogo compartido
+([`catalog/schemas`](catalog/schemas)).
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/v1/campaigns/:campaignId/publish` | admin, coordinator | Construye y publica el lote; 404 si la campaña no existe |
+
+Reglas del lote:
+
+1. Solo campañas en `in_field` o `completed`; el resto responde **400** `PUBLISH_INVALID_STATE`.
+2. Se usa la **ventana seleccionada** (o la primera guardada) para fechar el muestreo; sin ventanas →
+   **400** `NO_WINDOW_TO_PUBLISH`.
+3. Un `Sample` (matriz `water`, `status: analyzed`) con `collectedAt` = fin de la ventana y
+   `labReceivedAt` = `collectedAt` + `transportMinutes`; una `Observation` por parámetro de la
+   campaña, con `unitCode` canónico y `method` tomados del catálogo (nunca hardcodeados).
+4. Los **valores son simulados** y deterministas (`simulated-values.ts`): el MVP no captura datos de
+   laboratorio todavía. IDs también deterministas (`deterministic-uuid.ts`), así que dos llamadas con
+   la misma campaña y ventana producen **exactamente el mismo payload**.
+5. `Idempotency-Key` = `sha256` del payload serializado: reintentar la publicación no duplica datos
+   en AquaMetric.
+6. El evento `observations_published` se escribe **después** de que AquaMetric acepta el lote
+   ([ADR-006](docs/adr/006-events-after-commit.md)); si la publicación falla no se emite evento.
+
+| Situación | HTTP | Código |
+|---|---|---|
+| AquaMetric acepta el lote (2xx) | 200 | — |
+| Estado no publicable / sin ventanas / 4xx de AquaMetric | 400 | `PUBLISH_INVALID_STATE` · `NO_WINDOW_TO_PUBLISH` · `PUBLISH_REJECTED` |
+| Timeout (5 s) o 5xx tras 2 intentos | 502 | `UPSTREAM_UNAVAILABLE` |
+
+Respuesta: `{ campaignId, published, catalogVersion, idempotencyKey, observationCount, siteCode,
+payload }`, donde `payload` es exactamente lo enviado a AquaMetric (útil para depurar en Swagger).
+
 ## Seeds
 
 `pnpm --filter api seed:all` ejecuta los cuatro seeds en orden; todos son idempotentes por `email`/`code`,
@@ -303,7 +339,7 @@ así que correrlo dos veces no duplica filas ni resetea contraseñas.
 
 ## Documentación
 
-- [`docs/adr/`](docs/adr/) — decisiones de arquitectura (ADR-001: reserva atómica).
+- [`docs/adr/`](docs/adr/) — decisiones de arquitectura (ADR-001 reserva atómica, ADR-002 eventos en Mongo, ADR-006 eventos post-commit).
 - [`docs/design-system.md`](docs/design-system.md) — tokens y componentes de UI.
 - [`catalog/`](catalog/) — fuente de verdad del catálogo compartido con AquaMetric.
 
