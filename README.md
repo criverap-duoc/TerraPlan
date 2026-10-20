@@ -40,7 +40,7 @@ curl http://localhost:3000/api/v1/health
 | R3 | Auth + roles (JWT, refresh rotativo) | ✅ |
 | R4 | Sitios y recursos (técnicos, equipos, vehículos) | ✅ |
 | R5 | Reserva atómica + test de carrera | ✅ |
-| R6 | Ventanas factibles | ⬜ |
+| R6 | Ventanas factibles | ✅ |
 | R7 | Campañas y máquina de estados | ⬜ |
 | R8 | Weather/flow gate + reprogramación | ⬜ |
 | R9 | Log de eventos en MongoDB | ⬜ |
@@ -153,6 +153,37 @@ pnpm --filter api test:e2e   # HTTP completo contra el Postgres de docker compos
 **concurrencia real** (10 reservas simultáneas ⇒ 1 éxito y 9 conflictos) y no debe tocar los datos de
 desarrollo. `test:e2e` usa el Postgres de `docker compose` (ya migrado) para probar endpoints, roles
 y el body `problem+json`, igual que las rebanadas anteriores.
+
+## Ventanas factibles
+
+`POST /api/v1/campaigns/:campaignId/feasible-windows` divide el rango pedido en slots consecutivos y,
+para cada uno, calcula si la muestra alcanza a analizarse antes de que venza el **tiempo de
+conservación** más corto de los parámetros elegidos (`holdingTimeHours` del catálogo). Es
+**informativo**: no persiste nada ni reserva recursos (la garantía real es el `EXCLUDE` descrito
+arriba).
+
+Para cada slot: `arrivalAtLab = samplingEnd + transportMinutes`; si el laboratorio está cerrado,
+`analysisStart` se corre a la próxima apertura (en R6: 8:00–18:00, lunes a viernes,
+`America/Santiago`). La ventana es factible solo si `analysisStart ≤ holdingDeadline`, donde
+`holdingDeadline = samplingEnd + minHoldingTimeHours`. Si todos los parámetros son `in_situ`,
+`minHoldingTimeHours` es `"Infinity"` y todas las ventanas son factibles. Se devuelven como máximo
+100 ventanas (las primeras), ordenadas por `samplingStart`.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/campaigns/<campaignId>/feasible-windows \
+  -H 'Authorization: Bearer <access_token>' -H 'Content-Type: application/json' \
+  -d '{"earliestStart":"2026-11-16T13:00:00Z","latestEnd":"2026-11-20T22:00:00Z",
+       "slotMinutes":120,"transportMinutes":90,"parameterCodes":["TURB","N_NO3"]}'
+```
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/v1/campaigns/:campaignId/feasible-windows` | admin, coordinator | Calcula ventanas factibles; 404 si la campaña no existe |
+
+La regla vive en `computeFeasibleWindows()` (`scheduling/compute-feasible-windows.domain.ts`): función
+pura, sin Nest, sin TypeORM y sin `new Date()`; usa `Intl` para la zona horaria y tiene tests de tabla
+(factible simple, cierre del laboratorio, fin de semana, cruce de medianoche, `Infinity`, múltiples
+slots y rango vacío). Ver `01 §4.2` y [`docs/architecture.md`](docs/architecture.md).
 
 ## Seeds
 

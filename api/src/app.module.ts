@@ -14,6 +14,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { SchedulingModule } from './modules/scheduling/scheduling.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { TechniciansModule } from './modules/technicians/technicians.module';
 import { UsersModule } from './modules/users/users.module';
@@ -48,6 +49,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     VehiclesModule,
     CampaignsModule,
     ReservationsModule,
+    SchedulingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

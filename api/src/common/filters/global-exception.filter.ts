@@ -148,13 +148,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const descriptor = this.describe(status);
     const payload = exception.getResponse();
+    let code = descriptor.code;
     let detail = descriptor.detail;
     let errors: string[] | undefined;
 
     if (typeof payload === 'string') {
       detail = this.humanize(payload);
     } else if (payload !== null && typeof payload === 'object') {
-      const { message } = payload as { message?: unknown };
+      const { message, code: payloadCode } = payload as { message?: unknown; code?: unknown };
+
+      if (typeof payloadCode === 'string') {
+        code = payloadCode;
+      }
 
       if (Array.isArray(message)) {
         errors = message.filter((item): item is string => typeof item === 'string');
@@ -168,7 +173,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       type: 'about:blank',
       title: descriptor.title,
       status,
-      code: descriptor.code,
+      code,
       detail,
       requestId,
       ...(errors ? { errors } : {}),
