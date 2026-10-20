@@ -19,9 +19,13 @@ export class FeasibleWindowResponseDto {
 
   @ApiProperty({
     example: '2026-11-17T15:00:00.000Z',
-    description: 'samplingEnd + the shortest holding time of the selected parameters',
+    nullable: true,
+    type: String,
+    description:
+      'samplingEnd + the shortest holding time of the selected parameters. ' +
+      'null when the campaign has no lab parameters (every parameter is in_situ).',
   })
-  holdingDeadline!: string;
+  holdingDeadline!: string | null;
 
   @ApiProperty({ example: true })
   isFeasible!: boolean;

@@ -22,13 +22,16 @@ const DEFAULT_LAB_OPEN_HOURS: LabOpenHours = {
   timeZone: 'America/Santiago',
 };
 
-function toResponse(window: FeasibleWindow): FeasibleWindowResponseDto {
+// Infinity has no deadline; the API exposes null instead of the sentinel date.
+function toResponse(window: FeasibleWindow, minHoldingTimeHours: number): FeasibleWindowResponseDto {
   return {
     samplingStart: window.samplingStart.toISOString(),
     samplingEnd: window.samplingEnd.toISOString(),
     arrivalAtLab: window.arrivalAtLab.toISOString(),
     analysisStart: window.analysisStart.toISOString(),
-    holdingDeadline: window.holdingDeadline.toISOString(),
+    holdingDeadline: Number.isFinite(minHoldingTimeHours)
+      ? window.holdingDeadline.toISOString()
+      : null,
     isFeasible: window.isFeasible,
     ...(window.infeasibilityReason ? { infeasibilityReason: window.infeasibilityReason } : {}),
   };
@@ -71,7 +74,7 @@ export class SchedulingService {
     return {
       campaignId,
       minHoldingTimeHours: Number.isFinite(minHoldingTimeHours) ? minHoldingTimeHours : 'Infinity',
-      windows: windows.map(toResponse),
+      windows: windows.map((window) => toResponse(window, minHoldingTimeHours)),
     };
   }
 

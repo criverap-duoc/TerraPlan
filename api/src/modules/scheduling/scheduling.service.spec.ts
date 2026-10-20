@@ -88,6 +88,7 @@ describe('SchedulingService', () => {
 
     expect(response.minHoldingTimeHours).toBe('Infinity');
     expect(response.windows.every((window) => window.isFeasible)).toBe(true);
+    expect(response.windows.every((window) => window.holdingDeadline === null)).toBe(true);
   });
 
   it('defaults to every parameter that requires a lab window', async () => {

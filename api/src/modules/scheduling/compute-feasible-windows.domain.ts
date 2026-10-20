@@ -155,6 +155,9 @@ function nextLabOpen(date: Date, hours: LabOpenHours): Date {
  * An infeasible window always reports `holding_exceeded`: the brief gives it precedence when both
  * causes apply, because a lab-closed delay only matters once it pushes analysis past the deadline.
  * `lab_closed` stays in the contract for the per-window detail the UI shows in R7.
+ *
+ * `holdingDeadline` is the sentinel `MAX_DATE` when `minHoldingTimeHours` is `Infinity`; the
+ * service mapper turns it into `null` for the API.
  */
 export function computeFeasibleWindows(input: FeasibleWindowsInput): FeasibleWindow[] {
   const firstStartMs = input.earliestStart.getTime();
@@ -171,6 +174,7 @@ export function computeFeasibleWindows(input: FeasibleWindowsInput): FeasibleWin
   for (
     let startMs = firstStartMs;
     startMs + slotMs <= rangeEndMs && windows.length < MAX_FEASIBLE_WINDOWS;
+    // TODO(R8): iterate by local calendar to handle DST transitions (currently iterates in absolute time)
     startMs += slotMs
   ) {
     const samplingStart = new Date(startMs);
