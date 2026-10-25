@@ -31,7 +31,7 @@ empezar; los límites cambian.
 ## Paso 2 · Atlas M0 (MongoDB)
 
 1. Crear cluster M0, usuario de base de datos y permitir la IP de Render (`0.0.0.0/0` en el MVP).
-2. Copiar `MONGO_URL` (`mongodb+srv://usuario:clave@cluster.mongodb.net/terraplan`).
+2. Copiar `MONGO_URL` (`mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/terraplan`).
 3. Verificar la conexión con `mongosh "<MONGO_URL>" --eval "db.runCommand({ ping: 1 })"`.
 
 ## Paso 3 · Render (API)
