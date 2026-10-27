@@ -4,11 +4,9 @@
 [![NestJS](https://img.shields.io/badge/API-NestJS%2012-E0234E?logo=nestjs)](https://nestjs.com)
 [![React](https://img.shields.io/badge/web-React%2019-61DAFB?logo=react)](https://react.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-
-<!-- Descomentar cuando el deploy esté hecho y las URLs confirmadas.
 [![Render](https://img.shields.io/badge/deploy-Render-46E3B7?logo=render)](https://terraplan-api.onrender.com/api/v1/health)
 [![Vercel](https://img.shields.io/badge/deploy-Vercel-000000?logo=vercel)](https://terraplan.vercel.app)
--->
+
 
 Agenda de campañas de muestreo ambiental: calcula ventanas factibles según los tiempos de
 conservación de cada parámetro, reserva técnico + equipo + vehículo de forma atómica y reprograma
@@ -79,6 +77,15 @@ curl http://localhost:3000/api/v1/health
 | R10 | Publicación a AquaMetric | ✅ |
 | R11 | Pantallas del MVP (frontend) | ✅ login, agenda, campañas, detalle, asistente de nueva campaña, recursos y catálogo |
 | R12 | k6, deploy free tier y documentación final | ✅ k6 (carrera y lectura), `render.yaml`, `api/Dockerfile`, arquitectura, glosario, ADRs y guía de despliegue |
+
+## Capturas
+
+### Login - Agenda - Campañas
+![Login - Agenda - Campañas](docs/screenshots/TerraPlan1.gif)
+
+### Recursos - Catálogo - Perfil - Logout
+![Recursos - Catálogo - Perfil - Logout](docs/screenshots/TerraPlan2.gif)
+
 
 ## Auth
 
@@ -367,26 +374,6 @@ así que correrlo dos veces no duplica filas ni resetea contraseñas.
 | Sitios | `pnpm --filter api seed:sites` | 6 sitios de la cuenca del Maipo: `RIO-MAIPO-01`, `RIO-MAIPO-02`, `RIO-MAPOCHO-01`, `EMB-ELYES-01`, `EST-LAMPA-01`, `RIO-MAIPO-EST-01` |
 | Recursos | `pnpm --filter api seed:resources` | 4 técnicos (`TECH-01`…`TECH-04`; `TECH-01` vinculada a `technician@`), 3 equipos (`EQ-SONDA-01`, `EQ-TURB-01`, `EQ-NUTRI-01`) y 3 vehículos (`VH-01`…`VH-03`) |
 | Campañas | `pnpm --filter api seed:campaigns` | 12 campañas (`CAMP-2026-0001`…`CAMP-2026-0012`) repartidas entre `draft`, `planned`, `confirmed`, `in_field`, `needs_reschedule` y `completed`, cada una con sitio (round-robin de los 6) y parámetros del catálogo. Las campañas posteriores a `draft` reciben 2 ventanas demo (lunes 08:00–10:00 y miércoles 10:00–12:00, hora de Santiago) con límite de conservación calculado desde el catálogo, sin reservas |
-
-
-## Capturas
-
-> _Las capturas se actualizan en cada release._
-
-| | |
-|---|---|
-| ![Login](docs/screenshots/01-login.png) | ![Agenda](docs/screenshots/02-agenda.png) |
-| **Login** | **Agenda** |
-| ![Campañas](docs/screenshots/03-campaigns.png) | ![Detalle](docs/screenshots/04-campaign-detail.png) |
-| **Campañas** | **Detalle de campaña** |
-| ![Wizard](docs/screenshots/05-wizard.png) | ![Catálogo](docs/screenshots/06-catalog.png) |
-| **Nueva campaña** | **Catálogo** |
-
-### Demo en video
-
-![Demo](docs/screenshots/demo.gif)
-
-_Flujo completo: login → nueva campaña → cálculo de ventanas → reserva atómica → confirmación._
 
 ## Performance
 
